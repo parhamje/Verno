@@ -1,0 +1,35 @@
+# Dependencies & Virtual Environments
+node_modules/
+backend/__pycache__/
+*/__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# Pre-packaged IDE Binaries (Heavy binaries > 100MB distributed via GitHub Releases)
+ide/
+Verno AI Studio.lnk
+
+# Local User Data & Sessions
+backend/data/projects/*.json
+workspace/*
+!workspace/.gitkeep
+
+# Build artifacts
+dist/
+build/
+*.asar
+
+# Environment variables & secrets
+.env
+backend/.env
+backend/dist/
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

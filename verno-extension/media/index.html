@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verno Studio</title>
+  <link rel="stylesheet" href="{{STYLE_URI}}">
+</head>
+<body>
+  <!-- Top Navigation Header -->
+  <header class="studio-header">
+    <div class="header-main">
+      <div class="header-brand">
+        <div class="brand-avatar">
+          <img src="{{LOGO_URI}}" width="22" height="22" alt="Verno" style="display:block; object-fit:contain; filter: drop-shadow(0 0 4px rgba(0, 200, 255, 0.4));" />
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">Verno AI</span>
+          <span class="status-pulse-dot" id="projectPulse"></span>
+        </div>
+      </div>
+
+      <div class="header-toolbar">
+        <button class="action-btn history-btn" id="historyBtn" title="Chat & Session History">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>History</span>
+        </button>
+        <button class="action-btn new-chat-btn" id="newProjectBtn" title="New Chat (Clear & Reset)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+          <span>New</span>
+        </button>
+        <button class="action-btn run-btn" id="startBtn" disabled title="Start Autonomous Workflow">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </button>
+        <button class="action-btn stop-btn" id="stopBtn" disabled title="Stop Workflow">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Micro Context Strip: Project & Phase -->
+    <div class="header-sub">
+      <div class="sub-project">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span class="project-name" id="currentProjectName">No active project</span>
+      </div>
+      <span class="phase-pill" id="currentPhasePill">IDLE</span>
+    </div>
+
+    <!-- Hairline Dynamic Progress Beam -->
+    <div class="progress-hud" id="progressHud">
+      <div class="progress-info" style="display:none">
+        <span id="progressLabel">Project Progress</span>
+        <span id="progressPercent">0%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Network Disconnection / Auto-Reconnect Banner -->
+  <div class="network-banner hidden" id="networkBanner">
+    <div class="network-banner-content">
+      <div class="network-icon-pulse">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+      </div>
+      <div class="network-text">
+        <span class="network-title" id="networkStatusTitle">Network Disconnected</span>
+        <span class="network-desc" id="networkStatusDesc">Workflow paused. Verno will auto-resume once connection restores...</span>
+      </div>
+    </div>
+    <div class="network-banner-actions">
+      <span class="network-timer" id="networkTimer">Auto-retry in 4s</span>
+      <button class="network-retry-btn" id="networkRetryBtn">Retry Now</button>
+    </div>
+  </div>
+
+  <!-- Sub-bar: Sleek Segmented Agent Switcher & Tasks Pill -->
+  <div class="roster-bar">
+    <div class="agent-roster" id="agentRoster">
+      <button class="roster-pill active" data-agent="all" title="View all team messages">
+        <span class="roster-dot active"></span>
+        <span>👥 Team</span>
+      </button>
+      <button class="roster-pill" data-agent="pm" title="Sarah • Project Manager">
+        <span class="roster-dot" id="dot-pm"></span>
+        <span>📋 Sarah</span>
+      </button>
+      <button class="roster-pill" data-agent="dev" title="David • Lead Developer">
+        <span class="roster-dot" id="dot-dev"></span>
+        <span>💻 David</span>
+      </button>
+      <button class="roster-pill" data-agent="qa" title="Maya • QA Automation">
+        <span class="roster-dot" id="dot-qa"></span>
+        <span>🧪 Maya</span>
+      </button>
+      <button class="roster-pill" data-agent="devops" title="Sam • DevOps & Infra">
+        <span class="roster-dot" id="dot-devops"></span>
+        <span>🚀 Sam</span>
+      </button>
+    </div>
+
+    <button class="tasks-pill-btn" id="tasksDrawerHeader" title="Toggle Sprint Tasks">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <span>Tasks</span>
+      <span class="tasks-badge" id="tasksCountBadge">0</span>
+    </button>
+  </div>
+
+  <!-- Collapsible Sprint Tasks Drawer (Floating Card) -->
+  <div class="tasks-drawer collapsed" id="tasksDrawer">
+    <div class="tasks-list" id="tasksList">
+      <div class="tasks-empty">No active sprint tasks. Describe your feature to begin.</div>
+    </div>
+  </div>
+
+  <!-- Chat Messages Stream -->
+  <div class="chat-container" id="chatContainer">
+    <!-- Modern Chat Hero for Empty State -->
+    <div class="chat-hero" id="chatHero">
+      <div class="hero-emblem">
+        <img src="{{LOGO_URI}}" width="52" height="52" alt="Verno" style="display:block; object-fit:contain; filter: drop-shadow(0 0 16px rgba(0, 200, 255, 0.45));" />
+      </div>
+      <h2 class="hero-title">How can Verno help you build today?</h2>
+      <p class="hero-subtitle">Multi-agent software engineering powered by Project Manager, Developer, QA & DevOps.</p>
+      
+      <div class="hero-prompt-grid">
+        <button class="hero-card chip-btn">
+          <span class="hero-card-icon">⚡</span>
+          <div class="hero-card-info">
+            <strong>Create a Feature</strong>
+            <span>Scaffold endpoints, UI, or workflows</span>
+          </div>
+        </button>
+        <button class="hero-card chip-btn">
+          <span class="hero-card-icon">🐛</span>
+          <div class="hero-card-info">
+            <strong>Find & Fix Bugs</strong>
+            <span>Analyze workspace issues & diagnostics</span>
+          </div>
+        </button>
+        <button class="hero-card chip-btn">
+          <span class="hero-card-icon">📝</span>
+          <div class="hero-card-info">
+            <strong>Review & Refactor</strong>
+            <span>Audit architecture, security & types</span>
+          </div>
+        </button>
+        <button class="hero-card chip-btn">
+          <span class="hero-card-icon">🧪</span>
+          <div class="hero-card-info">
+            <strong>Generate Test Suite</strong>
+            <span>Add unit & integration test coverage</span>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input Area / Floating Command Deck -->
+  <div class="input-area">
+    <div class="quick-chips">
+      <button class="chip-btn">💡 Feature</button>
+      <button class="chip-btn">🐛 Fix Bug</button>
+      <button class="chip-btn">📝 Review</button>
+      <button class="chip-btn">🏗️ Architecture</button>
+    </div>
+    
+    <div class="composer-card">
+      <!-- Active Context Tags Container -->
+      <div class="context-chips-container hidden" id="contextChipsContainer"></div>
+
+      <!-- Mention Autocomplete Popup -->
+      <div class="mention-popup hidden" id="mentionPopup">
+        <div class="mention-popup-header">
+          <span class="mention-title">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Codebase Context (@file)
+          </span>
+          <span class="mention-hint">↑↓ navigate • ↵ select • Esc close</span>
+        </div>
+        <div class="mention-list" id="mentionList">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <textarea class="chat-input" id="chatInput" placeholder="Ask Verno AI (use @ to add file context, / for commands)..." rows="1"></textarea>
+      
+      <div class="composer-footer">
+        <div class="composer-left">
+          <button class="composer-agent-tag" id="composerAgentTag" title="Click to open AI Settings">
+            <span class="tag-sparkle">✨</span>
+            <span id="composerProviderLabel">Verno Multi-Agent</span>
+          </button>
+        </div>
+        <div class="composer-right">
+          <span class="key-shortcut-hint">↵ send</span>
+          <button class="send-btn" id="sendBtn" title="Send (Enter)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide-over Chat History & Sessions Drawer -->
+  <div class="history-overlay hidden" id="historyOverlay">
+    <div class="history-drawer" id="historyDrawer">
+      <div class="history-header">
+        <div class="history-header-left">
+          <div class="history-header-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div class="history-header-titles">
+            <h3 class="history-title">Chat & Session History</h3>
+            <span class="history-subtitle" id="historyCount">0 saved sessions</span>
+          </div>
+        </div>
+        <button class="history-close-btn" id="historyCloseBtn" title="Close History">✕</button>
+      </div>
+
+      <div class="history-search-wrap">
+        <svg class="history-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="historySearchInput" placeholder="Search chats by project or requirement..." />
+      </div>
+
+      <div class="history-list" id="historyList">
+        <div class="history-empty">Loading history...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal Overlay -->
+  <div class="modal-overlay hidden" id="settingsModal">
+    <div class="modal-card">
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <div class="modal-brand">
+          <div class="modal-avatar">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="url(#verno-g1)"/>
+              <path d="M2 17L12 22L22 17L12 12L2 17Z" fill="url(#verno-g2)"/>
+              <path d="M2 12L12 17L22 12L12 7L2 12Z" fill="url(#verno-g3)"/>
+              <defs>
+                <linearGradient id="verno-g1" x1="2" y1="2" x2="22" y2="12" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#a78bfa"/>
+                  <stop offset="1" stop-color="#818cf8"/>
+                </linearGradient>
+                <linearGradient id="verno-g2" x1="2" y1="12" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#8b5cf6"/>
+                  <stop offset="1" stop-color="#6366f1"/>
+                </linearGradient>
+                <linearGradient id="verno-g3" x1="2" y1="7" x2="22" y2="17" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#c4b5fd"/>
+                  <stop offset="1" stop-color="#a855f7"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <div class="modal-titles">
+            <div class="modal-title-row">
+              <h3>Verno Studio Settings</h3>
+              <div class="header-status-pill" id="headerStatusPill">
+                <span class="status-pulse-dot" id="headerStatusDot"></span>
+                <span id="headerStatusText">Liara AI</span>
+              </div>
+            </div>
+            <p class="modal-subtitle">Configure AI model providers, endpoints, and per-agent intelligence</p>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="closeSettingsBtn" title="Close (Esc)">✕</button>
+      </div>
+
+      <!-- Segmented Navigation Tabs -->
+      <div class="settings-tabs-nav">
+        <button class="nav-tab active" data-tab="tab-provider">
+          <span class="tab-icon">⚡</span>
+          <span>Provider & API</span>
+        </button>
+        <button class="nav-tab" data-tab="tab-models">
+          <span class="tab-icon">🤖</span>
+          <span>Agent Intelligence</span>
+          <span class="tab-badge-pill">4 Agents</span>
+        </button>
+        <button class="nav-tab" data-tab="tab-advanced">
+          <span class="tab-icon">⚙️</span>
+          <span>Engine Runtime</span>
+        </button>
+      </div>
+
+      <div class="modal-body-scroll">
+        <!-- Tab 1: Provider & API -->
+        <div class="settings-tab-panel active" id="tab-provider">
+          <div class="section-title">Select AI LLM Provider Preset</div>
+          <div class="providers-grid" id="providersGrid">
+            <div class="provider-card" data-provider="liara">
+              <div class="provider-card-icon">☁️</div>
+              <div class="provider-card-body">
+                <div class="provider-card-name">Liara AI</div>
+                <div class="provider-card-desc">Fast low-latency platform</div>
+              </div>
+              <span class="provider-badge">Default</span>
+            </div>
+            <div class="provider-card" data-provider="openrouter">
+              <div class="provider-card-icon">🟣</div>
+              <div class="provider-card-body">
+                <div class="provider-card-name">OpenRouter</div>
+                <div class="provider-card-desc">Claude 3.5, GPT-4o, DeepSeek</div>
+              </div>
+            </div>
+            <div class="provider-card" data-provider="openai">
+              <div class="provider-card-icon">🟢</div>
+              <div class="provider-card-body">
+                <div class="provider-card-name">OpenAI</div>
+                <div class="provider-card-desc">Official GPT-4o, o1, mini</div>
+              </div>
+            </div>
+            <div class="provider-card" data-provider="groq">
+              <div class="provider-card-icon">⚡</div>
+              <div class="provider-card-body">
+                <div class="provider-card-name">Groq Cloud</div>
+                <div class="provider-card-desc">Ultra-fast Llama 3.3, 70B</div>
+              </div>
+            </div>
+            <div class="provider-card" data-provider="deepseek">
+              <div class="provider-card-icon">🔵</div>
+              <div class="provider-card-body">
+                <div class="provider-card-name">DeepSeek</div>
+                <div class="provider-card-desc">Official DeepSeek-V3 & Coder</div>
+              </div>
+            </div>
+            <div class="provider-card" data-provider="ollama">
+              <div class="provider-card-icon">🦙</div>
+              <div class="provider-card-body">
+                <div class="provider-card-name">Ollama</div>
+                <div class="provider-card-desc">Local offline models</div>
+              </div>
+            </div>
+            <div class="provider-card" data-provider="gemini">
+              <div class="provider-card-icon">🔶</div>
+              <div class="provider-card-body">
+                <div class="provider-card-name">Google Gemini</div>
+                <div class="provider-card-desc">Gemini 1.5 Pro / Flash</div>
+              </div>
+            </div>
+            <div class="provider-card" data-provider="custom">
+              <div class="provider-card-icon">🛠️</div>
+              <div class="provider-card-body">
+                <div class="provider-card-name">Custom Endpoint</div>
+                <div class="provider-card-desc">Any OpenAI-compatible URL</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hidden select for state sync -->
+          <select id="providerSelect" class="hidden-select">
+            <option value="liara">Liara AI</option>
+            <option value="openrouter">OpenRouter</option>
+            <option value="openai">OpenAI</option>
+            <option value="groq">Groq</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="ollama">Ollama</option>
+            <option value="gemini">Gemini</option>
+            <option value="custom">Custom</option>
+          </select>
+
+          <!-- Base URL Input -->
+          <div class="settings-field">
+            <div class="field-header">
+              <label for="baseUrlInput">API Base URL</label>
+              <span class="field-hint-tag">OpenAI /chat/completions</span>
+            </div>
+            <div class="field-input-box">
+              <input type="text" id="baseUrlInput" class="custom-input" placeholder="https://api.openai.com/v1" />
+              <button class="btn-input-icon" id="resetBaseUrlBtn" title="Reset to Provider Default">↺</button>
+            </div>
+            <span class="field-help">API root endpoint where agent requests are routed.</span>
+          </div>
+
+          <!-- API Key Input -->
+          <div class="settings-field">
+            <div class="field-header">
+              <label for="apiKeyInput">API Key or Bearer Token</label>
+              <span class="field-sec-tag">🔒 Saved in backend/.env</span>
+            </div>
+            <div class="field-input-box">
+              <input type="password" id="apiKeyInput" class="custom-input" placeholder="Paste your API key here (sk-... or Bearer)..." />
+              <button class="btn-input-icon" id="toggleApiKeyBtn" title="Show/Hide Key">👁️</button>
+            </div>
+            <span class="field-help">Stored locally in your workspace backend environment file. Never shared.</span>
+          </div>
+
+          <!-- Connection Test Box -->
+          <div class="conn-test-card">
+            <div class="conn-test-top">
+              <button class="btn-test-action" id="testConnBtn">
+                <span class="test-sparkle">⚡</span>
+                <span class="test-label">Test Connection</span>
+              </button>
+              <div class="test-result-wrapper">
+                <span class="conn-status-dot" id="connStatusDot"></span>
+                <span class="test-status" id="testStatusMsg">Ready to test connection</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Agent Models -->
+        <div class="settings-tab-panel" id="tab-models">
+          <div class="info-alert-box">
+            <span class="alert-icon">✨</span>
+            <div class="alert-text">
+              <strong>Multi-Agent Role Assignment:</strong> Verno automatically routes tasks to specialized agents. Choose an LLM tailored to each agent's strength or click a recommended preset pill.
+            </div>
+          </div>
+
+          <!-- 1. PM Agent Card -->
+          <div class="agent-config-card pm-card">
+            <div class="agent-card-top">
+              <div class="agent-avatar-wrap pm-avatar">📋</div>
+              <div class="agent-title-info">
+                <div class="agent-name-row">
+                  <span class="agent-card-name">Project Manager Agent</span>
+                  <span class="agent-role-pill pm-pill">Planning & Architecture</span>
+                </div>
+                <div class="agent-card-sub">Decomposes requirements, generates task backlog, manages sprints</div>
+              </div>
+            </div>
+            <div class="agent-model-select-area">
+              <div class="quick-pills-label">Quick select model:</div>
+              <div class="model-pills-container" data-target="pmModelInput">
+                <button type="button" class="model-chip" data-model="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</button>
+                <button type="button" class="model-chip" data-model="gpt-4o">GPT-4o</button>
+                <button type="button" class="model-chip" data-model="gemini-1.5-pro">Gemini 1.5 Pro</button>
+                <button type="button" class="model-chip" data-model="deepseek-chat">DeepSeek-V3</button>
+                <button type="button" class="model-chip" data-model="llama-3.3-70b-versatile">Llama 3.3</button>
+              </div>
+              <div class="custom-model-row">
+                <span class="model-id-label">Model ID:</span>
+                <input type="text" id="pmModelInput" class="custom-input small" placeholder="anthropic/claude-3.5-sonnet" />
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Developer Agent Card -->
+          <div class="agent-config-card dev-card">
+            <div class="agent-card-top">
+              <div class="agent-avatar-wrap dev-avatar">💻</div>
+              <div class="agent-title-info">
+                <div class="agent-name-row">
+                  <span class="agent-card-name">Developer Agent</span>
+                  <span class="agent-role-pill dev-pill">Code Generation</span>
+                </div>
+                <div class="agent-card-sub">Generates and refactors source code directly in workspace files</div>
+              </div>
+            </div>
+            <div class="agent-model-select-area">
+              <div class="quick-pills-label">Quick select model:</div>
+              <div class="model-pills-container" data-target="devModelInput">
+                <button type="button" class="model-chip" data-model="qwen/qwen3-coder">Qwen3 Coder</button>
+                <button type="button" class="model-chip" data-model="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</button>
+                <button type="button" class="model-chip" data-model="deepseek-coder">DeepSeek Coder</button>
+                <button type="button" class="model-chip" data-model="gpt-4o">GPT-4o</button>
+                <button type="button" class="model-chip" data-model="qwen2.5-coder:latest">Qwen 2.5 (Ollama)</button>
+              </div>
+              <div class="custom-model-row">
+                <span class="model-id-label">Model ID:</span>
+                <input type="text" id="devModelInput" class="custom-input small" placeholder="qwen/qwen3-coder" />
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. QA Tester Agent Card -->
+          <div class="agent-config-card qa-card">
+            <div class="agent-card-top">
+              <div class="agent-avatar-wrap qa-avatar">🧪</div>
+              <div class="agent-title-info">
+                <div class="agent-name-row">
+                  <span class="agent-card-name">QA Tester Agent</span>
+                  <span class="agent-role-pill qa-pill">Verification & Tests</span>
+                </div>
+                <div class="agent-card-sub">Detects edge cases, audits code logic, writes unit tests</div>
+              </div>
+            </div>
+            <div class="agent-model-select-area">
+              <div class="quick-pills-label">Quick select model:</div>
+              <div class="model-pills-container" data-target="qaModelInput">
+                <button type="button" class="model-chip" data-model="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</button>
+                <button type="button" class="model-chip" data-model="gpt-4o-mini">GPT-4o mini</button>
+                <button type="button" class="model-chip" data-model="gemini-1.5-flash">Gemini Flash</button>
+                <button type="button" class="model-chip" data-model="deepseek-chat">DeepSeek-V3</button>
+                <button type="button" class="model-chip" data-model="llama-3.1-8b-instant">Llama 3.1 8B</button>
+              </div>
+              <div class="custom-model-row">
+                <span class="model-id-label">Model ID:</span>
+                <input type="text" id="qaModelInput" class="custom-input small" placeholder="anthropic/claude-3.5-sonnet" />
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. DevOps Agent Card -->
+          <div class="agent-config-card devops-card">
+            <div class="agent-card-top">
+              <div class="agent-avatar-wrap devops-avatar">🚀</div>
+              <div class="agent-title-info">
+                <div class="agent-name-row">
+                  <span class="agent-card-name">DevOps Agent</span>
+                  <span class="agent-role-pill devops-pill">Build & Runtime</span>
+                </div>
+                <div class="agent-card-sub">Configures environments, scripts, run commands, packages</div>
+              </div>
+            </div>
+            <div class="agent-model-select-area">
+              <div class="quick-pills-label">Quick select model:</div>
+              <div class="model-pills-container" data-target="devopsModelInput">
+                <button type="button" class="model-chip" data-model="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</button>
+                <button type="button" class="model-chip" data-model="gpt-4o-mini">GPT-4o mini</button>
+                <button type="button" class="model-chip" data-model="gemini-1.5-flash">Gemini Flash</button>
+                <button type="button" class="model-chip" data-model="llama-3.3-70b-versatile">Llama 3.3</button>
+              </div>
+              <div class="custom-model-row">
+                <span class="model-id-label">Model ID:</span>
+                <input type="text" id="devopsModelInput" class="custom-input small" placeholder="anthropic/claude-3.5-sonnet" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Engine Runtime -->
+        <div class="settings-tab-panel" id="tab-advanced">
+          <div class="settings-field">
+            <div class="field-header">
+              <label for="backendUrlInput">Verno Backend Server URL</label>
+              <span class="field-hint-tag">FastAPI Daemon</span>
+            </div>
+            <div class="field-input-box">
+              <input type="text" id="backendUrlInput" class="custom-input" value="http://127.0.0.1:8000" />
+            </div>
+            <span class="field-help">Local orchestrator server providing multi-agent coordination.</span>
+          </div>
+
+          <div class="settings-grid-row">
+            <div class="settings-field">
+              <div class="field-header">
+                <label for="maxIterationsInput">Max Autonomous Iterations</label>
+              </div>
+              <div class="field-input-box">
+                <input type="number" id="maxIterationsInput" class="custom-input" min="1" max="100" value="20" />
+              </div>
+              <span class="field-help">Agent cycles before stopping.</span>
+            </div>
+
+            <div class="settings-field">
+              <div class="field-header">
+                <label for="timeoutInput">HTTP Timeout (sec)</label>
+              </div>
+              <div class="field-input-box">
+                <input type="number" id="timeoutInput" class="custom-input" min="10" max="600" value="120" />
+              </div>
+              <span class="field-help">Request timeout for LLM calls.</span>
+            </div>
+          </div>
+
+          <div class="vscode-native-card">
+            <div class="vscode-native-info">
+              <div class="vscode-native-title">VS Code Native Settings</div>
+              <div class="vscode-native-sub">Open standard Settings GUI or settings.json</div>
+            </div>
+            <button class="btn-native-link" id="openVsCodeSettingsBtn">Open VS Code Settings ↗</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="modal-footer-bar">
+        <div class="footer-status-text">
+          <span>⚡ Auto-persisted to <code>backend/.env</code></span>
+        </div>
+        <div class="footer-btn-group">
+          <button class="btn-modal-cancel" id="cancelSettingsBtn">Cancel</button>
+          <button class="btn-modal-save" id="saveSettingsBtn">
+            <span class="save-sparkle">💾</span>
+            <span>Save & Apply</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="{{SCRIPT_URI}}"></script>
+</body>
+</html>

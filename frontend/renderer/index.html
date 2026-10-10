@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Verno</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="monokai.min.css">
+    <link rel="stylesheet" data-name="vs/editor/editor.main" href="../node_modules/monaco-editor/min/vs/editor/editor.main.css">
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <div class="logo-wrapper" id="logoWrapper" title="Verno Studio">
+          <img src="../assets/logobg.png" alt="Verno Logo" class="header-logo" />
+          <span class="header-brand-name">Verno</span>
+          <span class="badge-studio">STUDIO</span>
+        </div>
+
+        <div class="header-project-indicator" id="projectIndicator">
+          <span class="project-indicator-dot" id="projectIndicatorDot"></span>
+          <span class="project-indicator-name" id="currentProjectName">No active project</span>
+          <span class="phase-pill" id="currentPhasePill">IDLE</span>
+        </div>
+      </div>
+
+      <!-- Global Project Progress Header HUD -->
+      <div class="header-center">
+        <div class="global-progress-bar-container">
+          <div class="global-progress-info">
+            <span class="progress-label" id="projectProgressText" data-translate="Project Progress">Project Progress: 0%</span>
+            <span class="progress-percent" id="headerProgressPercent">0%</span>
+          </div>
+          <div class="global-progress-track">
+            <div class="global-progress-fill" id="projectProgressBar" style="width: 0%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="header-controls">
+          <button class="btn-header btn-primary" id="newProjectBtn" title="New Project">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+            </svg>
+            <span data-translate="New Project">New</span>
+          </button>
+          <button class="btn-header btn-action-start" id="startBtn" disabled title="Start Development">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+              <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
+            </svg>
+            <span data-translate="Start">Start</span>
+          </button>
+          <button class="btn-header btn-action-pause" id="pauseBtn" disabled title="Pause Development">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>
+            </svg>
+            <span data-translate="Pause">Pause</span>
+          </button>
+          <button class="btn-header btn-action-stop" id="stopBtn" disabled title="Stop Development">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5z"/>
+            </svg>
+            <span data-translate="Stop">Stop</span>
+          </button>
+        </div>
+
+        <div class="header-divider"></div>
+
+        <div class="profile-dropdown-container">
+          <div class="profile-avatar" id="profileAvatar" title="Account & Preferences">
+            <img src="../assets/img/profile.png" alt="User Profile" />
+          </div>
+
+          <div class="profile-dropdown" id="profileDropdown">
+            <div class="profile-dropdown-header">
+              <div class="profile-dropdown-name">Parham</div>
+              <div class="profile-dropdown-email">parhamjenani81@outlook.com</div>
+            </div>
+
+            <div class="profile-dropdown-item" id="settingsMenuBtn">
+              <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/>
+                <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319z"/>
+              </svg>
+              <span data-translate="Settings">Settings</span>
+            </div>
+
+            <div class="profile-dropdown-item" id="envSettingsBtn">
+              <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/>
+                <path d="M6.854 4.646a.5.5 0 0 1 0 .708L4.207 8l2.647 2.646a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 0 1 .708 0zm2.292 0a.5.5 0 0 0 0 .708L11.793 8l-2.647 2.646a.5.5 0 0 0 .708.708l3-3a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708 0z"/>
+              </svg>
+              <span data-translate="Environment Settings">Environment Settings</span>
+            </div>
+
+            <div class="profile-dropdown-divider"></div>
+
+            <div class="profile-dropdown-item">
+              <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
+                <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
+              </svg>
+              <span data-translate="Logout">Logout</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace Layout -->
+    <div class="main-layout">
+      <!-- LEFT: Team Chat & Plan Hub -->
+      <div class="chat-section">
+        <!-- Chat Header with Live Multi-Agent Roster -->
+        <div class="chat-header">
+          <div class="chat-header-top">
+            <div class="chat-title-group">
+              <h2 class="chat-title" id="chatTitle" data-translate="Team Chat">Team Chat</h2>
+              <span class="chat-subtitle">Autonomous Multi-Agent Workspace</span>
+            </div>
+            <div class="status-indicator">
+              <span class="status-dot"></span>
+              <span class="status-text" id="systemStatusText" data-translate="Ready">Ready</span>
+            </div>
+          </div>
+
+          <!-- Multi-Agent Presence Roster -->
+          <div class="agent-roster" id="agentRoster">
+            <div class="roster-pill active" data-agent="all" title="All Agents">
+              <span class="roster-avatar">🌐</span>
+              <div class="roster-info">
+                <span class="roster-name">Team</span>
+                <span class="roster-status-dot active"></span>
+              </div>
+            </div>
+            <div class="roster-pill" data-agent="pm" title="Project Manager">
+              <span class="roster-avatar">📋</span>
+              <div class="roster-info">
+                <span class="roster-name">PM</span>
+                <span class="roster-status-dot" id="rosterDot-pm"></span>
+              </div>
+            </div>
+            <div class="roster-pill" data-agent="dev" title="Developer">
+              <span class="roster-avatar">💻</span>
+              <div class="roster-info">
+                <span class="roster-name">Dev</span>
+                <span class="roster-status-dot" id="rosterDot-dev"></span>
+              </div>
+            </div>
+            <div class="roster-pill" data-agent="qa" title="QA Engineer">
+              <span class="roster-avatar">🧪</span>
+              <div class="roster-info">
+                <span class="roster-name">QA</span>
+                <span class="roster-status-dot" id="rosterDot-qa"></span>
+              </div>
+            </div>
+            <div class="roster-pill" data-agent="devops" title="DevOps">
+              <span class="roster-avatar">🚀</span>
+              <div class="roster-info">
+                <span class="roster-name">Ops</span>
+                <span class="roster-status-dot" id="rosterDot-devops"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tasks Drawer (Collapsible) -->
+        <div class="tasks-drawer collapsed" id="tasksDrawer">
+          <div class="tasks-drawer-header" id="tasksDrawerHeader">
+            <div class="tasks-header-left">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 11l3 3L22 4"/>
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+              </svg>
+              <span>Sprint Tasks</span>
+              <span class="tasks-count-badge" id="tasksCountBadge">0</span>
+            </div>
+            <button class="tasks-drawer-toggle" id="tasksDrawerToggle" title="Toggle Tasks">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+          </div>
+          <div class="tasks-list" id="tasksList">
+            <div class="tasks-empty">No active sprint tasks. Send a prompt to plan features.</div>
+          </div>
+        </div>
+
+        <!-- Chat Messages -->
+        <div class="chat-messages" id="chatMessages">
+          <div class="message-wrapper agent">
+            <div class="message-header">
+              <span class="agent-avatar-badge pm">📋</span>
+              <span class="message-author" data-translate="Project Manager">Project Manager</span>
+              <span class="message-role-tag pm">PM</span>
+              <span class="message-time">Just now</span>
+            </div>
+            <div class="message-bubble" data-translate="Hello! I'm your Project Manager. Let's start building something amazing together! 🚀">
+              Hello! I'm your Project Manager. Tell me what application or feature you'd like to build today, and our team will plan and craft it for you! 🚀
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Input Area -->
+        <div class="chat-input-area">
+          <div class="quick-actions">
+            <button class="quick-action" data-translate="Suggest feature">💡 Suggest feature</button>
+            <button class="quick-action" data-translate="Report bug">🐛 Report bug</button>
+            <button class="quick-action" data-translate="Review code">📝 Review code</button>
+            <button class="quick-action">🏗️ Architecture</button>
+          </div>
+          <div class="chat-input-wrapper">
+            <textarea
+              class="chat-input"
+              id="chatInput"
+              placeholder="Describe your app idea, requirements, or request..."
+              rows="1"
+            ></textarea>
+            <div class="input-actions">
+              <div class="agent-mention-container">
+                <button class="mention-btn" id="mentionBtn" title="Mention agent">@</button>
+                <div class="agent-mention-dropdown" id="agentMentionDropdown">
+                  <div class="agent-mention-header" data-translate="Select Agent">Select Agent</div>
+                  <div class="agent-mention-item all active" data-agent="all">
+                    <span class="agent-mention-name" data-translate="All Agents">🌐 All Agents</span>
+                    <span class="agent-mention-check">✓</span>
+                  </div>
+                  <div class="agent-mention-item pm" data-agent="pm">
+                    <span class="agent-mention-name" data-translate="Project Manager">📋 Project Manager</span>
+                    <span class="agent-mention-check" style="display: none">✓</span>
+                  </div>
+                  <div class="agent-mention-item dev" data-agent="dev">
+                    <span class="agent-mention-name" data-translate="Developer">💻 Developer</span>
+                    <span class="agent-mention-check" style="display: none">✓</span>
+                  </div>
+                  <div class="agent-mention-item qa" data-agent="qa">
+                    <span class="agent-mention-name" data-translate="QA Engineer">🧪 QA Engineer</span>
+                    <span class="agent-mention-check" style="display: none">✓</span>
+                  </div>
+                  <div class="agent-mention-item devops" data-agent="devops">
+                    <span class="agent-mention-name" data-translate="DevOps">🚀 DevOps</span>
+                    <span class="agent-mention-check" style="display: none">✓</span>
+                  </div>
+                </div>
+              </div>
+
+              <button class="send-btn" id="sendBtn" title="Send message">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="input-helper-text">
+            <span>Press <kbd>Enter</kbd> to send, <kbd>Shift + Enter</kbd> for newline</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Dual Studio (Monaco Code Editor + Live Web Preview) -->
+      <div class="code-section">
+        <div class="code-header">
+          <div class="code-header-left">
+            <button class="icon-btn" id="fileTreeToggle" title="Project Files">
+              <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M1 3.5A1.5 1.5 0 0 1 2.5 2h2.764c.958 0 1.76.56 2.311 1.184C7.985 3.648 8.48 4 9 4h4.5A1.5 1.5 0 0 1 15 5.5v7a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 12.5v-9z"/>
+              </svg>
+            </button>
+            <div class="code-tabs" id="codeTabs"></div>
+          </div>
+
+          <div class="code-header-right">
+            <!-- View Mode Switcher -->
+            <div class="view-mode-group">
+              <button class="view-mode-btn" id="viewModeEditor" title="Code Editor Only">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="16 18 22 12 16 6"></polyline>
+                  <polyline points="8 6 2 12 8 18"></polyline>
+                </svg>
+                <span>Code</span>
+              </button>
+              <button class="view-mode-btn active" id="viewModeSplit" title="Split View">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <line x1="12" y1="3" x2="12" y2="21"/>
+                </svg>
+                <span>Split</span>
+              </button>
+              <button class="view-mode-btn" id="viewModePreview" title="Live Web Preview Only">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="2" y1="12" x2="22" y2="12"/>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+                <span>Preview</span>
+              </button>
+            </div>
+
+            <div class="header-action-separator"></div>
+
+            <button class="action-btn" id="saveCodeBtn" title="Save File">
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H2zm12-1a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h12z"/>
+                <path d="M3 2.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5v-2zm1 0v1.5h6V2.5H4zm-1 6.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5v-5zm1 .5v4h8V9.5H4z"/>
+              </svg>
+              <span data-translate="Save File">Save</span>
+            </button>
+
+            <button class="action-btn" id="copyCodeBtn" title="Copy Code">
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+                <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+              </svg>
+              <span data-translate="Copy">Copy</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Studio Workspace Body (Dual Pane: Monaco + Live Web Preview) -->
+        <div class="studio-workspace mode-split" id="studioWorkspace">
+          <!-- Editor Pane -->
+          <div class="studio-pane editor-pane" id="editorPane">
+            <div class="code-editor-wrapper">
+              <div id="monacoEditorContainer"></div>
+            </div>
+          </div>
+
+          <!-- Live Web Preview Pane -->
+          <div class="studio-pane preview-pane" id="previewPane">
+            <div class="preview-browser-chrome">
+              <div class="preview-chrome-left">
+                <div class="browser-dots">
+                  <span class="dot dot-red"></span>
+                  <span class="dot dot-yellow"></span>
+                  <span class="dot dot-green"></span>
+                </div>
+                <button class="preview-nav-btn" id="previewReloadBtn" title="Reload Preview">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                  </svg>
+                </button>
+                <div class="preview-address-bar">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="2" y1="12" x2="22" y2="12"/>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                  </svg>
+                  <span class="preview-url-text" id="previewAddressText">http://localhost:3000 (Live Web View)</span>
+                </div>
+              </div>
+              <div class="preview-chrome-right">
+                <div class="device-toggles">
+                  <button class="device-btn active" id="deviceDesktopBtn" title="Desktop View (100%)">🖥️</button>
+                  <button class="device-btn" id="deviceTabletBtn" title="Tablet View (768px)">📱</button>
+                  <button class="device-btn" id="deviceMobileBtn" title="Mobile View (375px)">📲</button>
+                </div>
+              </div>
+            </div>
+            <div class="preview-viewport-wrapper" id="previewViewportWrapper">
+              <iframe class="preview-iframe" id="previewIframe" sandbox="allow-scripts allow-modals allow-same-origin"></iframe>
+            </div>
+          </div>
+        </div>
+
+        <!-- Studio Footer Status Bar -->
+        <div class="code-actions">
+          <div class="status-bar-left">
+            <span id="editorCurrentFileDisplay">No file open</span>
+            <span class="status-separator">|</span>
+            <span id="editorStats">Lines: 0 | Size: 0 bytes</span>
+          </div>
+          <div class="status-bar-center">
+            <div class="agent-activity-ticker">
+              <span class="activity-pulse-dot" id="activityPulseDot"></span>
+              <span id="agentActivityText">Studio Ready</span>
+            </div>
+          </div>
+          <div class="status-bar-right">
+            <span class="status-pill status-ready" id="engineStatusPill">Engine Connected</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title" data-translate="Settings">
+            <svg width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+              <path
+                d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"
+              />
+              <path
+                d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319z"
+              />
+            </svg>
+            Settings
+          </h2>
+          <button class="modal-close" id="closeSettings">
+            <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+              <path
+                d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Appearance Section -->
+          <div class="settings-section">
+            <div class="settings-section-title" data-translate="Appearance">
+              🎨 Appearance
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-info">
+                <div class="setting-label" data-translate="Dark Mode">
+                  <svg
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    viewBox="0 0 16 16"
+                  >
+                    <path
+                      d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0 1a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0z"
+                    />
+                  </svg>
+                  Dark Mode
+                </div>
+                <div
+                  class="setting-description"
+                  data-translate="Switch between light and dark theme"
+                >
+                  Switch between light and dark theme
+                </div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="darkModeToggle" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-info">
+                <div class="setting-label" data-translate="Accent Color">
+                  Accent Color
+                </div>
+                <div
+                  class="setting-description"
+                  data-translate="Choose your preferred accent color"
+                >
+                  Choose your preferred accent color
+                </div>
+              </div>
+              <div class="color-picker-group">
+                <div
+                  class="color-option active"
+                  style="
+                    background: linear-gradient(
+                      135deg,
+                      #8B5CF6 0%,
+                      #C4B5FD 100%
+                    );
+                  "
+                  data-color="purple"
+                ></div>
+                <div
+                  class="color-option"
+                  style="
+                    background: linear-gradient(
+                      135deg,
+                      #2563EB 0%,
+                      #93C5FD 100%
+                    );
+                  "
+                  data-color="blue"
+                ></div>
+                <div
+                  class="color-option"
+                  style="
+                    background: linear-gradient(
+                      135deg,
+                      #10B981 0%,
+                      #6EE7B7 100%
+                    );
+                  "
+                  data-color="green"
+                ></div>
+                <div
+                  class="color-option"
+                  style="
+                    background: linear-gradient(
+                      135deg,
+                      #F59E0B 0%,
+                      #FCD34D 100%
+                    );
+                  "
+                  data-color="orange"
+                ></div>
+              </div>
+            </div>
+            <div class="setting-item">
+              <div class="setting-info">
+                <div class="setting-label" data-translate="Persian Language">
+                  Persian Language
+                </div>
+                <div
+                  class="setting-description"
+                  data-translate="Switch between English and Persian"
+                >
+                  Switch between English and Persian
+                </div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="languageToggle" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <!-- Chat Settings -->
+          <div class="settings-section">
+            <div class="settings-section-title" data-translate="Chat Settings">
+              💬 Chat Settings
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-info">
+                <div class="setting-label" data-translate="Message Animations">
+                  Message Animations
+                </div>
+                <div
+                  class="setting-description"
+                  data-translate="Enable smooth animations for messages"
+                >
+                  Enable smooth animations for messages
+                </div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" checked id="animationsToggle" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-info">
+                <div class="setting-label" data-translate="Font Size">
+                  Font Size
+                </div>
+                <div
+                  class="setting-description"
+                  data-translate="Adjust the chat text size"
+                >
+                  Adjust the chat text size
+                </div>
+              </div>
+              <select class="setting-select" id="fontSizeSelect">
+                <option value="small" data-translate="Small">Small</option>
+                <option value="medium" selected data-translate="Medium">
+                  Medium
+                </option>
+                <option value="large" data-translate="Large">Large</option>
+              </select>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-info">
+                <div class="setting-label" data-translate="Sound Effects">
+                  Sound Effects
+                </div>
+                <div
+                  class="setting-description"
+                  data-translate="Play sounds for new messages"
+                >
+                  Play sounds for new messages
+                </div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="soundToggle" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <!-- Notifications -->
+          <div class="settings-section">
+            <div class="settings-section-title" data-translate="Notifications">
+              🔔 Notifications
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-info">
+                <div
+                  class="setting-label"
+                  data-translate="Desktop Notifications"
+                >
+                  Desktop Notifications
+                </div>
+                <div
+                  class="setting-description"
+                  data-translate="Show notifications on your desktop"
+                >
+                  Show notifications on your desktop
+                </div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="desktopNotifToggle" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-info">
+                <div class="setting-label" data-translate="Agent Responses">
+                  Agent Responses
+                </div>
+                <div
+                  class="setting-description"
+                  data-translate="Get notified when agents respond"
+                >
+                  Get notified when agents respond
+                </div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" checked id="agentNotifToggle" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <!-- Editor Settings -->
+          <div class="settings-section">
+            <div
+              class="settings-section-title"
+              data-translate="Editor Settings"
+            >
+              ⚙️ Editor Settings
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-info">
+                <div class="setting-label" data-translate="Auto-Save">
+                  Auto-Save
+                </div>
+                <div
+                  class="setting-description"
+                  data-translate="Automatically save code changes"
+                >
+                  Automatically save code changes
+                </div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" checked id="autoSaveToggle" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-info">
+                <div class="setting-label" data-translate="Code Theme">
+                  Code Theme
+                </div>
+                <div
+                  class="setting-description"
+                  data-translate="Choose editor color scheme"
+                >
+                  Choose editor color scheme
+                </div>
+              </div>
+              <select class="setting-select" id="codeThemeSelect">
+                <option value="default" selected data-translate="Default">
+                  Default
+                </option>
+                <option value="monokai" data-translate="Monokai">
+                  Monokai
+                </option>
+                <option value="github" data-translate="GitHub">GitHub</option>
+                <option value="dracula" data-translate="Dracula">
+                  Dracula
+                </option>
+              </select>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-info">
+                <div class="setting-label" data-translate="Line Numbers">
+                  Line Numbers
+                </div>
+                <div
+                  class="setting-description"
+                  data-translate="Show line numbers in editor"
+                >
+                  Show line numbers in editor
+                </div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" checked id="lineNumbersToggle" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- File Tree Panel -->
+    <div class="file-tree-panel" id="fileTreePanel">
+      <h3 data-translate="Project Files">📁 Project Files</h3>
+    </div>
+
+    <script src="../node_modules/monaco-editor/min/vs/loader.js"></script>
+    <script src="highlight.min.js"></script>
+    <script src="app.js"></script>
+    <audio id="notification-sound" src="../assets/sounds/notification.wav"></audio>
+  </body>
+</html>

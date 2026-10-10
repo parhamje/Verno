@@ -1,0 +1,243 @@
+{
+  "name": "verno-studio",
+  "displayName": "Verno Studio",
+  "description": "Autonomous Multi-Agent AI Software Development Studio for Code-OSS",
+  "version": "1.0.0",
+  "publisher": "verno",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "AI",
+    "Programming Languages",
+    "Other"
+  ],
+  "activationEvents": [
+    "*"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "verno-sidebar",
+          "title": "Chat",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "verno-sidebar": [
+        {
+          "type": "webview",
+          "id": "verno.chatView",
+          "name": "CHAT",
+          "visibility": "visible"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "verno.openChat",
+        "title": "Verno AI Chat",
+        "category": "Verno",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "verno.openSettings",
+        "title": "Verno: Settings & Model Configuration",
+        "category": "Verno",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "verno.newProject",
+        "title": "Verno: New Chat / Project",
+        "category": "Verno",
+        "icon": "$(add)"
+      },
+      {
+        "command": "verno.startDev",
+        "title": "Verno: Start Development",
+        "category": "Verno",
+        "icon": "$(play)"
+      },
+      {
+        "command": "verno.openTerminal",
+        "title": "Verno: Open Integrated Terminal",
+        "category": "Verno",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "verno.showLogs",
+        "title": "Verno: Show Backend Engine Logs",
+        "category": "Verno"
+      },
+      {
+        "command": "verno.inlineEdit",
+        "title": "Verno: Inline Edit Code (Ctrl+K)",
+        "category": "Verno",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "verno.acceptInlineEdit",
+        "title": "Verno: Accept Inline Edit",
+        "category": "Verno"
+      },
+      {
+        "command": "verno.rejectInlineEdit",
+        "title": "Verno: Reject Inline Edit",
+        "category": "Verno"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "verno.openChat",
+        "key": "ctrl+alt+i",
+        "mac": "cmd+alt+i"
+      },
+      {
+        "command": "verno.openChat",
+        "key": "ctrl+shift+i",
+        "mac": "cmd+shift+i"
+      },
+      {
+        "command": "verno.openSettings",
+        "key": "ctrl+,",
+        "when": "sideBarFocus && activeViewlet == 'workbench.view.extension.verno-sidebar'"
+      },
+      {
+        "command": "verno.inlineEdit",
+        "key": "ctrl+k",
+        "mac": "cmd+k",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "verno.acceptInlineEdit",
+        "key": "ctrl+enter",
+        "when": "vernoInlineEditActive"
+      },
+      {
+        "command": "verno.rejectInlineEdit",
+        "key": "escape",
+        "when": "vernoInlineEditActive"
+      }
+    ],
+    "menus": {
+      "layoutControl": [
+        {
+          "command": "verno.openChat",
+          "group": "navigation@3"
+        },
+        {
+          "command": "verno.openSettings",
+          "group": "navigation@4"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "verno.openChat",
+          "group": "navigation@1"
+        }
+      ],
+      "commandCenter": [
+        {
+          "command": "verno.openChat",
+          "group": "navigation"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "verno.newProject",
+          "when": "view == verno.chatView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "verno.openTerminal",
+          "when": "view == verno.chatView",
+          "group": "navigation@3"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Verno AI Studio",
+      "properties": {
+        "verno.backendUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8000",
+          "description": "Base URL of the Verno Multi-Agent FastAPI backend server."
+        },
+        "verno.provider": {
+          "type": "string",
+          "enum": [
+            "openrouter",
+            "openai",
+            "groq",
+            "ollama",
+            "gemini",
+            "deepseek",
+            "liara",
+            "custom"
+          ],
+          "enumDescriptions": [
+            "OpenRouter (Access to Claude, GPT-4o, Llama 3, DeepSeek, etc.)",
+            "OpenAI Official API (GPT-4o, o1, GPT-4o-mini)",
+            "Groq Cloud (Ultra-fast Llama 3.3, Mixtral)",
+            "Ollama (Local LLMs running on your machine)",
+            "Google Gemini API (Gemini 1.5 Pro, Flash)",
+            "DeepSeek Official API (DeepSeek-V3, DeepSeek-Coder)",
+            "Liara AI Platform",
+            "Custom OpenAI-Compatible API Endpoint"
+          ],
+          "default": "liara",
+          "description": "Select AI LLM Provider preset."
+        },
+        "verno.aiBaseUrl": {
+          "type": "string",
+          "default": "https://ai.liara.ir/api/693bc6a1dc577f85e738b9a9/v1",
+          "description": "Base URL for LLM API calls (e.g., https://api.openai.com/v1, http://localhost:11434/v1)."
+        },
+        "verno.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API Key or Bearer Token for the selected AI Provider.",
+          "password": true
+        },
+        "verno.models.projectManager": {
+          "type": "string",
+          "default": "anthropic/claude-3.5-sonnet",
+          "description": "LLM model assigned to the Project Manager Agent (plans sprints, decomposes user requirements into tasks)."
+        },
+        "verno.models.developer": {
+          "type": "string",
+          "default": "qwen/qwen3-coder",
+          "description": "LLM model assigned to the Developer Agent (generates, writes, and refactors source code)."
+        },
+        "verno.models.qaTester": {
+          "type": "string",
+          "default": "anthropic/claude-3.5-sonnet",
+          "description": "LLM model assigned to the QA Tester Agent (validates logic, writes unit tests, and detects bugs)."
+        },
+        "verno.models.devops": {
+          "type": "string",
+          "default": "anthropic/claude-3.5-sonnet",
+          "description": "LLM model assigned to the DevOps Agent (configures build scripts, runtime environments, and dependencies)."
+        },
+        "verno.maxIterations": {
+          "type": "number",
+          "default": 20,
+          "description": "Maximum autonomous execution iterations per project workflow."
+        },
+        "verno.timeout": {
+          "type": "number",
+          "default": 120,
+          "description": "HTTP request timeout in seconds for LLM generation."
+        },
+        "verno.autoSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically save files written by AI agents to disk."
+        }
+      }
+    }
+  }
+}
