@@ -11,17 +11,27 @@ class QATesterAgent(BaseAgent):
         """Review code and report issues"""
         
         tasks = context.get("tasks", [])
+        task_graph = context.get("task_graph")
         
-        # 1. Find task already in progress
-        current_task = next((t for t in tasks if t.status == TaskStatus.IN_PROGRESS), None)
+        current_task = None
+        if task_graph:
+            current_task = task_graph.get_active_task()
+            if not current_task:
+                ready_qa = [t for t in task_graph.get_ready_tasks() if t.assigned_to == AgentRole.QA_TESTER]
+                if ready_qa:
+                    current_task = ready_qa[0]
+                    current_task.status = TaskStatus.IN_PROGRESS
         
-        # 2. Or pick up a pending/failed task assigned to QA
+        # Fallback to list search
+        if not current_task:
+            current_task = next((t for t in tasks if t.status == TaskStatus.IN_PROGRESS), None)
+        
         if not current_task:
             current_task = next((t for t in tasks if t.assigned_to == AgentRole.QA_TESTER and t.status in [TaskStatus.PENDING, TaskStatus.FAILED]), None)
             if current_task:
                 current_task.status = TaskStatus.IN_PROGRESS
         
-        # 3. If no QA task remains, check if any dev task is pending
+        # If no QA task remains, check if any dev task is pending
         if not current_task:
             pending_dev = [t for t in tasks if t.assigned_to == AgentRole.DEVELOPER and t.status != TaskStatus.COMPLETED]
             if pending_dev:
@@ -31,7 +41,6 @@ class QATesterAgent(BaseAgent):
                     "next_agent": AgentRole.DEVELOPER
                 }
             else:
-                # All tasks are completed! Direct handoff to DevOps for deployment
                 return {
                     "message": "🎉 @DevOps (Sam), all developer tasks and QA checks have completed successfully! Handing over to you for final runtime verification and deployment.",
                     "phase": "deployment",

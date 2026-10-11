@@ -81,16 +81,40 @@ Keep tasks specific and focused. Maintain a clean progression (Core Structure ->
             # Try to parse JSON from response
             response_json = self.extract_json(raw_content)
 
-            # Create Task objects
+            # Create Task objects with DAG dependencies
             tasks = []
-            for i, task_data in enumerate(response_json.get("tasks", [])):
+            created_ids = []
+            raw_tasks = response_json.get("tasks", [])
+            for i, task_data in enumerate(raw_tasks):
+                t_id = str(uuid.uuid4())
+                created_ids.append(t_id)
+                deps = []
+                # If explicit dependencies given as indices or IDs, use them
+                raw_deps = task_data.get("dependencies", [])
+                if isinstance(raw_deps, list):
+                    for d in raw_deps:
+                        if isinstance(d, int) and 0 <= d < len(created_ids) - 1:
+                            deps.append(created_ids[d])
+                        elif isinstance(d, str) and d:
+                            deps.append(d)
+                # Default sequential dependency: task i depends on task i-1
+                if not deps and i > 0:
+                    deps.append(created_ids[i - 1])
+
+                assigned = task_data.get("assigned_to", "developer")
+                try:
+                    assigned_role = AgentRole(assigned)
+                except ValueError:
+                    assigned_role = AgentRole.DEVELOPER
+
                 task = Task(
-                    id=str(uuid.uuid4()),
-                    title=task_data["title"],
-                    description=task_data["description"],
+                    id=t_id,
+                    title=task_data.get("title", f"Task #{i+1}"),
+                    description=task_data.get("description", ""),
                     status=TaskStatus.PENDING,
-                    assigned_to=AgentRole(task_data["assigned_to"]),
-                    created_at=datetime.now()
+                    assigned_to=assigned_role,
+                    created_at=datetime.now(),
+                    dependencies=deps
                 )
                 tasks.append(task)
             

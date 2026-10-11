@@ -20,6 +20,7 @@ class TaskStatus(str, Enum):
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     FAILED = "failed"
+    BLOCKED = "blocked"
 
 class Message(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -41,7 +42,12 @@ class Task(BaseModel):
     assigned_to: AgentRole
     created_at: datetime = Field(default_factory=datetime.now)
     completed_at: Optional[datetime] = None
-    dependencies: List[str] = []
+    dependencies: List[str] = Field(default_factory=list)
+    artifacts: List[str] = Field(default_factory=list)
+    retry_count: int = 0
+    max_retries: int = 3
+    failure_reason: Optional[str] = None
+    evaluation_notes: Optional[str] = None
 
     class Config:
         json_encoders = {
@@ -70,6 +76,14 @@ class ProjectState(BaseModel):
     api_key: str = ""
     providers_config: Optional[Dict] = None
     memory: ProjectMemory = Field(default_factory=ProjectMemory)
+
+    def get_task_graph(self):
+        """Return a dynamic TaskGraph instance wrapping the project's tasks"""
+        try:
+            from models.task_graph import TaskGraph
+        except ImportError:
+            from .task_graph import TaskGraph
+        return TaskGraph(tasks=self.tasks)
     
     class Config:
         json_encoders = {

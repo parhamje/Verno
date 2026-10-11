@@ -1724,13 +1724,23 @@ function renderTasks(tasks) {
   }
 
   tasksList.innerHTML = tasks.map((t, idx) => {
-    const status = (t.status || 'pending').toLowerCase().replace(' ', '_');
-    const label = (t.status || 'PENDING').toUpperCase();
+    const rawStatus = (t.status || 'pending').toLowerCase().replace(' ', '_');
+    let label = (t.status || 'PENDING').toUpperCase();
+    let badgeClass = rawStatus;
+
+    if (t.retry_count && t.retry_count > 0 && rawStatus === 'in_progress') {
+      label = `HEALING (${t.retry_count}/${t.max_retries || 3})`;
+      badgeClass = 'healing';
+    } else if (rawStatus === 'blocked') {
+      label = 'BLOCKED';
+      badgeClass = 'blocked';
+    }
+
     const title = t.title || t.description || `Task #${idx + 1}`;
     return `
       <div class="task-item">
         <span class="task-item-title" title="${escapeHtml(title)}">${escapeHtml(title)}</span>
-        <span class="task-tag ${status}">${label}</span>
+        <span class="task-tag ${badgeClass}">${label}</span>
       </div>
     `;
   }).join('');

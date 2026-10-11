@@ -7,6 +7,16 @@ import sys
 import json
 
 from models.project_state import ProjectState, Message, AgentRole, Task, TaskStatus
+try:
+    from models.task_graph import TaskGraph
+except ImportError:
+    from .task_graph import TaskGraph
+
+try:
+    from services.intent_router import IntentRouter, IntentType
+except ImportError:
+    from .intent_router import IntentRouter, IntentType
+
 from agents import ProjectManagerAgent, DeveloperAgent, QATesterAgent, DevOpsAgent
 from .ai_service import AIService
 from config import config
@@ -182,11 +192,16 @@ class Orchestrator:
         project_path = os.path.join(project_directory, project_name)
         os.makedirs(project_path, exist_ok=True)
         
+        # Smart Intent Classification & Dynamic Entrypoint
+        routing = IntentRouter.classify_intent(requirement, has_existing_files=bool(files_context))
+        initial_phase = routing.target_phase
+        
         project = ProjectState(
             project_id=project_id,
             project_name=project_name,
             project_directory=project_path,
             requirement=requirement,
+            current_phase=initial_phase,
             created_at=datetime.now(),
             updated_at=datetime.now(),
             api_key=effective_key,
@@ -206,6 +221,18 @@ class Orchestrator:
         if files_context:
             for fpath, fcontent in files_context.items():
                 project.files[fpath] = fcontent
+        
+        # If fast-track route selected (e.g. targeted bug fix or direct QA), create initial task
+        if routing.fast_track and routing.suggested_task_title:
+            fast_task = Task(
+                id=str(uuid.uuid4()),
+                title=routing.suggested_task_title,
+                description=requirement,
+                status=TaskStatus.PENDING,
+                assigned_to=routing.target_agent,
+                created_at=datetime.now()
+            )
+            project.tasks.append(fast_task)
         
         self.projects[project_id] = project
         
@@ -240,6 +267,13 @@ class Orchestrator:
         
         # Add initial user message
         self.add_message(project_id, AgentRole.USER, requirement)
+        if routing.fast_track:
+            pm_dispatch_msg = (
+                f"⚡ **Dynamic Intent Routing:** {routing.rationale}\n"
+                f"Directly delegating to @{routing.target_agent.value} for '{routing.suggested_task_title}'."
+            )
+            self.add_message(project_id, AgentRole.PROJECT_MANAGER, pm_dispatch_msg)
+            
         self.save_project(project_id)
         
         return project_id
@@ -249,12 +283,32 @@ class Orchestrator:
         return self.projects.get(project_id)
     
     def add_message(self, project_id: str, role: AgentRole, content: str):
-        """Add a message to the project conversation history"""
+        """Add a message to the project conversation history with dynamic state reactivity"""
         project = self.get_project(project_id)
         if project:
             msg = Message(id=str(uuid.uuid4()), role=role, content=content, timestamp=datetime.now())
             project.messages.append(msg)
             project.updated_at = datetime.now()
+            
+            # Dynamic reactivity: If user sends an instruction while project is done or paused, re-engage
+            if role == AgentRole.USER:
+                routing = IntentRouter.classify_intent(content, has_existing_files=bool(project.files))
+                if project.is_complete or routing.fast_track:
+                    project.is_complete = False
+                    if routing.fast_track and routing.suggested_task_title:
+                        new_task = Task(
+                            id=str(uuid.uuid4()),
+                            title=routing.suggested_task_title,
+                            description=content,
+                            status=TaskStatus.PENDING,
+                            assigned_to=routing.target_agent,
+                            created_at=datetime.now()
+                        )
+                        project.tasks.append(new_task)
+                        project.current_phase = routing.target_phase
+                    elif routing.intent == IntentType.NEW_FEATURE_OR_PROJECT:
+                        project.current_phase = "planning"
+                        
             self.save_project(project_id)
             return msg
         return None
@@ -346,14 +400,16 @@ class Orchestrator:
         
         project.iterations += 1
         
-        # Determine current agent based on phase
+        # Determine current agent dynamically based on TaskGraph and Phase
         current_agent_role = self.get_current_agent(project)
         agent = self.agents[project_id][current_agent_role]
         
-        # Prepare context with Shared Project Memory
+        # Prepare context with Shared Project Memory & TaskGraph
+        graph = project.get_task_graph()
         context = {
             "requirement": project.requirement,
             "tasks": project.tasks,
+            "task_graph": graph,
             "files": project.files,
             "current_phase": project.current_phase,
             "iterations": project.iterations,
@@ -367,10 +423,12 @@ class Orchestrator:
             # Add agent message
             self.add_message(project_id, current_agent_role, result["message"])
             
-            # Handle tasks update
+            # Handle tasks update from agent
             if "tasks" in result:
                 for task in result["tasks"]:
                     project.tasks.append(task)
+                # Re-fetch updated graph
+                graph = project.get_task_graph()
             
             # Handle ProjectMemory updates from agent response
             if "tech_stack" in result and result["tech_stack"] and isinstance(result["tech_stack"], dict):
@@ -389,6 +447,7 @@ class Orchestrator:
             
             # Handle file operations
             if "file_operations" in result:
+                written_files = []
                 for file_op in result["file_operations"]:
                     file_path = os.path.join(project.project_directory, file_op.path)
                     
@@ -397,6 +456,7 @@ class Orchestrator:
                         with open(file_path, "w", encoding="utf-8") as f:
                             f.write(file_op.content)
                         project.files[file_op.path] = file_op.content
+                        written_files.append(file_op.path)
                         
                     elif file_op.operation == "delete":
                         if os.path.exists(file_path):
@@ -406,6 +466,8 @@ class Orchestrator:
                 # Self-healing verification step: run tests and syntax checks on written files
                 if current_agent_role == AgentRole.DEVELOPER and result["file_operations"]:
                     verification_error = await self.verify_code_in_workspace(project, result["file_operations"])
+                    active_task = graph.get_active_task()
+                    
                     if verification_error:
                         # Update QualityScorecard in Shared Memory
                         project.memory.update_verification_score(
@@ -414,23 +476,25 @@ class Orchestrator:
                             passed_tests=0,
                             failures=[verification_error[:150]]
                         )
-                        # Automated self-healing trigger
+                        if active_task:
+                            graph.mark_failed(active_task.id, reason=verification_error, auto_retry=True)
+                        else:
+                            repair_task = Task(
+                                id=str(uuid.uuid4()),
+                                title="Self-Healing: Repair verification errors",
+                                description=f"Automated verification failed:\n{verification_error}",
+                                assigned_to=AgentRole.DEVELOPER,
+                                status=TaskStatus.IN_PROGRESS
+                            )
+                            project.tasks.append(repair_task)
+
                         qa_notice = (
                             f"⚠️ @Developer (David), automated DevOps and QA checks caught an issue:\n"
                             f"```\n{verification_error}\n```\n"
                             f"@Developer, please review the traceback and repair the affected code so we can re-test!"
                         )
                         self.add_message(project_id, AgentRole.QA_TESTER, qa_notice)
-                        
                         project.current_phase = "development"
-                        repair_task = Task(
-                            id=str(uuid.uuid4()),
-                            title="Self-Healing: Repair verification errors",
-                            description=f"Automated verification failed:\n{verification_error}\nPlease review and fix the code.",
-                            assigned_to=AgentRole.DEVELOPER,
-                            status=TaskStatus.FAILED
-                        )
-                        project.tasks.append(repair_task)
                         result["message"] += f"\n\n[DevOps Test Runner]: Error detected! Initiating Developer Agent self-healing loop:\n{verification_error}"
                         result["next_agent"] = AgentRole.DEVELOPER
                     else:
@@ -441,15 +505,64 @@ class Orchestrator:
                             passed_tests=1,
                             failures=[]
                         )
+                        if active_task:
+                            graph.mark_completed(active_task.id, artifacts=written_files)
+
                         devops_pass = "✅ @Developer (David) & @QA_Tester (Maya), all automated syntax and structural checks passed cleanly! Good to go."
                         self.add_message(project_id, AgentRole.DEVOPS, devops_pass)
-                        if "task_id" in result:
-                            for t in project.tasks:
-                                if t.id == result["task_id"]:
-                                    t.status = TaskStatus.COMPLETED
-            
-            # Update phase
-            if "phase" in result:
+                        
+                        # Dynamic progression to QA or next task
+                        ready_qa = [t for t in graph.get_ready_tasks() if t.assigned_to == AgentRole.QA_TESTER]
+                        if ready_qa:
+                            result["next_agent"] = AgentRole.QA_TESTER
+                            project.current_phase = "testing"
+                        elif graph.all_completed():
+                            result["next_agent"] = AgentRole.DEVOPS
+                            project.current_phase = "deployment"
+                        else:
+                            ready_dev = [t for t in graph.get_ready_tasks() if t.assigned_to == AgentRole.DEVELOPER]
+                            if ready_dev:
+                                result["next_agent"] = AgentRole.DEVELOPER
+                                project.current_phase = "development"
+
+            # Dynamic QA review handling
+            if current_agent_role == AgentRole.QA_TESTER:
+                active_task = graph.get_active_task()
+                if result.get("approved"):
+                    if active_task and active_task.assigned_to == AgentRole.QA_TESTER:
+                        graph.mark_completed(active_task.id)
+                    if graph.all_completed():
+                        project.current_phase = "deployment"
+                        result["next_agent"] = AgentRole.DEVOPS
+                    else:
+                        ready = graph.get_ready_tasks()
+                        if ready:
+                            next_t = graph.start_next_task()
+                            project.current_phase = "development" if next_t.assigned_to == AgentRole.DEVELOPER else "testing"
+                            result["next_agent"] = next_t.assigned_to
+                elif result.get("approved") is False:
+                    if active_task:
+                        err_reason = ", ".join(result.get("issues", [])) or "QA rejected implementation"
+                        graph.mark_failed(active_task.id, reason=err_reason, auto_retry=True)
+                    project.current_phase = "development"
+                    result["next_agent"] = AgentRole.DEVELOPER
+
+            # Project Manager handoff after planning
+            if current_agent_role == AgentRole.PROJECT_MANAGER and result.get("tasks"):
+                next_t = graph.start_next_task()
+                if next_t:
+                    project.current_phase = "development" if next_t.assigned_to == AgentRole.DEVELOPER else "testing"
+                    result["next_agent"] = next_t.assigned_to
+
+            # DevOps completion
+            if current_agent_role == AgentRole.DEVOPS:
+                project.is_complete = True
+                project.current_phase = "complete"
+                result["is_complete"] = True
+                result["next_agent"] = None
+
+            # Update phase if explicitly returned and not complete
+            if "phase" in result and not project.is_complete:
                 project.current_phase = result["phase"]
             
             # Check if complete
@@ -488,16 +601,38 @@ class Orchestrator:
             }
     
     def get_current_agent(self, project: ProjectState) -> AgentRole:
-        """Determine which agent should act next"""
-        if project.current_phase == "initialization":
+        """Determine which agent should act next dynamically based on TaskGraph, Self-Healing, and Phase"""
+        if not project.tasks and project.current_phase in ["initialization", "planning"]:
             return AgentRole.PROJECT_MANAGER
-        elif project.current_phase == "planning":
-            return AgentRole.PROJECT_MANAGER
-        elif project.current_phase == "development":
+
+        graph = project.get_task_graph()
+
+        # 1. Active in-progress task takes highest precedence
+        active = graph.get_active_task()
+        if active:
+            return active.assigned_to
+
+        # 2. Check for ready unblocked tasks
+        ready = graph.get_ready_tasks()
+        if ready:
+            next_task = ready[0]
+            return next_task.assigned_to
+
+        # 3. If all tasks are completed, DevOps finalizes release
+        if graph.all_completed() and project.current_phase != "complete":
+            return AgentRole.DEVOPS
+
+        # 4. Check for failed task requiring self-healing repair
+        failed = [t for t in project.tasks if t.status == TaskStatus.FAILED]
+        if failed:
+            return AgentRole.DEVELOPER
+
+        # 5. Fallback based on phase
+        if project.current_phase == "development":
             return AgentRole.DEVELOPER
         elif project.current_phase == "testing":
             return AgentRole.QA_TESTER
-        elif project.current_phase == "deployment":
+        elif project.current_phase in ["deployment", "complete"]:
             return AgentRole.DEVOPS
         else:
             return AgentRole.PROJECT_MANAGER

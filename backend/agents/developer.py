@@ -11,21 +11,40 @@ class DeveloperAgent(BaseAgent):
         """Write code and create files"""
         
         tasks = context.get("tasks", [])
+        task_graph = context.get("task_graph")
         current_files = context.get("files", {})
         
-        # Find next pending developer task
         pending_task = None
-        for task in tasks:
-            if task.assigned_to == AgentRole.DEVELOPER and task.status == TaskStatus.PENDING:
-                pending_task = task
-                break
-        
-        if not pending_task:
-            # Check if there are failed QA tasks that need fixes
+        if task_graph:
+            # 1. Check if there is an active in-progress task for Developer
+            active = task_graph.get_active_task()
+            if active and active.assigned_to == AgentRole.DEVELOPER:
+                pending_task = active
+            elif not active:
+                # 2. Pick next ready task assigned to Developer
+                ready = [t for t in task_graph.get_ready_tasks() if t.assigned_to == AgentRole.DEVELOPER]
+                if ready:
+                    pending_task = ready[0]
+                    pending_task.status = TaskStatus.IN_PROGRESS
+                elif not ready:
+                    # 3. Check for any failed task needing self-healing retry
+                    failed = [t for t in tasks if t.assigned_to == AgentRole.DEVELOPER and t.status == TaskStatus.FAILED]
+                    if failed:
+                        pending_task = failed[0]
+                        pending_task.status = TaskStatus.IN_PROGRESS
+        else:
+            # Fallback to direct list iteration
             for task in tasks:
-                if task.assigned_to == AgentRole.DEVELOPER and task.status == TaskStatus.FAILED:
+                if task.assigned_to == AgentRole.DEVELOPER and task.status in [TaskStatus.IN_PROGRESS, TaskStatus.PENDING]:
                     pending_task = task
+                    pending_task.status = TaskStatus.IN_PROGRESS
                     break
+            if not pending_task:
+                for task in tasks:
+                    if task.assigned_to == AgentRole.DEVELOPER and task.status == TaskStatus.FAILED:
+                        pending_task = task
+                        pending_task.status = TaskStatus.IN_PROGRESS
+                        break
         
         if not pending_task:
             qa_pending = [t for t in tasks if t.assigned_to == AgentRole.QA_TESTER and t.status != TaskStatus.COMPLETED]

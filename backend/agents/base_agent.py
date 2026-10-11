@@ -56,10 +56,15 @@ class BaseAgent(ABC):
         if "requirement" in context:
             formatted.append(f"Project Requirement: {context['requirement']}")
         
-        if "tasks" in context:
+        if "task_graph" in context and context["task_graph"]:
+            tg = context["task_graph"]
+            if hasattr(tg, "format_graph_summary"):
+                formatted.append("\n### Directed Task Graph & Sprint Execution\n" + tg.format_graph_summary())
+        elif "tasks" in context and context["tasks"]:
             formatted.append(f"\nCurrent Tasks ({len(context['tasks'])}):")
             for task in context['tasks']:
-                formatted.append(f"- [{task.status}] {task.title}")
+                status_val = getattr(task.status, 'value', str(task.status)) if hasattr(task, 'status') else 'pending'
+                formatted.append(f"- [{status_val}] {getattr(task, 'title', '')}")
         
         if "files" in context:
             formatted.append(f"\nCurrent Files ({len(context['files'])}):")
