@@ -144,6 +144,7 @@ const stopBtn = document.getElementById("stopBtn");
 const settingsBtn = document.getElementById("settingsBtn");
 const currentProjectName = document.getElementById("currentProjectName");
 const currentPhasePill = document.getElementById("currentPhasePill");
+const projectHealthPill = document.getElementById("projectHealthPill");
 const progressFill = document.getElementById("progressFill");
 const progressPercent = document.getElementById("progressPercent");
 const progressLabel = document.getElementById("progressLabel");
@@ -1256,6 +1257,10 @@ function startProjectSSE(projectId) {
             if (currentPhasePill) currentPhasePill.textContent = data.current_phase.toUpperCase();
           }
 
+          if (data.health_score !== undefined) {
+            updateHealthPill(data.health_score);
+          }
+
           // Calculate progress
           let percent = 20;
           if (data.tasks && data.tasks.length > 0) {
@@ -1483,6 +1488,7 @@ function renderHistoryCards(query = "") {
             <span>📅 ${formattedDate}</span>
             <span>💬 ${p.message_count || 0} msgs</span>
             <span>📋 ${p.completed_tasks || 0}/${p.task_count || 0} tasks</span>
+            <span>🛡️ ${p.health_score !== undefined ? p.health_score : 100}%</span>
           </div>
           <button class="history-delete-btn" data-delete-id="${p.project_id}" title="Delete session">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -1534,6 +1540,12 @@ async function loadProjectSession(projectId) {
 
     // Render tasks
     renderTasks(proj.tasks || []);
+
+    if (proj.memory && proj.memory.scorecard && proj.memory.scorecard.health_score !== undefined) {
+      updateHealthPill(proj.memory.scorecard.health_score);
+    } else {
+      updateHealthPill(null);
+    }
 
     // Progress
     let percent = 0;
@@ -1613,6 +1625,7 @@ function handleNewProject() {
   state.isRunning = false;
   state.isNetworkPaused = false;
   hideNetworkBanner();
+  updateHealthPill(null);
 
   if (currentProjectName) currentProjectName.textContent = "No active project";
   if (currentPhasePill) currentPhasePill.textContent = "IDLE";
@@ -1679,6 +1692,22 @@ function handleNewProject() {
 function updateProgress(percent) {
   if (progressFill) progressFill.style.width = `${percent}%`;
   if (progressPercent) progressPercent.textContent = `${percent}%`;
+}
+
+function updateHealthPill(score) {
+  if (!projectHealthPill) return;
+  if (score === undefined || score === null) {
+    projectHealthPill.style.display = "none";
+    return;
+  }
+  projectHealthPill.style.display = "inline-block";
+  projectHealthPill.textContent = `🛡️ ${score}%`;
+  projectHealthPill.className = "health-pill";
+  if (score < 50) {
+    projectHealthPill.classList.add("danger");
+  } else if (score < 80) {
+    projectHealthPill.classList.add("warning");
+  }
 }
 
 function renderTasks(tasks) {

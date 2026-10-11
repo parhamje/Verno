@@ -38,13 +38,16 @@
       </div>
     </div>
 
-    <!-- Micro Context Strip: Project & Phase -->
+    <!-- Micro Context Strip: Project, Health & Phase -->
     <div class="header-sub">
       <div class="sub-project">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         <span class="project-name" id="currentProjectName">No active project</span>
       </div>
-      <span class="phase-pill" id="currentPhasePill">IDLE</span>
+      <div class="header-sub-right">
+        <span class="health-pill" id="projectHealthPill" style="display: none;" title="Architecture & Code Health Score">100%</span>
+        <span class="phase-pill" id="currentPhasePill">IDLE</span>
+      </div>
     </div>
 
     <!-- Hairline Dynamic Progress Beam -->

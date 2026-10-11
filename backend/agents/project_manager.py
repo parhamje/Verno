@@ -41,6 +41,24 @@ YOUR STYLE & PERSONALITY:
 Return your response in this JSON format:
 {
     "message": "Sarah's collaborative team message introducing the plan, explaining the sprint breakdown, and handing off directly to @Developer",
+    "tech_stack": {
+        "frontend": "Framework or technology (e.g. HTML5/CSS/JS, React)",
+        "backend": "Backend technology or none",
+        "styling": "Styling approach"
+    },
+    "decisions": [
+        {
+            "topic": "Architecture",
+            "decision": "Concrete design decision",
+            "rationale": "Reasoning for the decision"
+        }
+    ],
+    "conventions": [
+        {
+            "category": "Code Quality",
+            "rule": "Clean architecture rule"
+        }
+    ],
     "tasks": [
         {
             "title": "Task title",
@@ -54,7 +72,7 @@ Keep tasks specific and focused. Maintain a clean progression (Core Structure ->
 """
         
         context_str = self.format_context(context)
-        user_message = f"{context_str}\n\nPlease create a project plan for this requirement."
+        user_message = f"{context_str}\n\nPlease create a project plan for this requirement, defining the tech stack, key architectural decisions, conventions, and tasks."
         
         response = await self.generate_response(system_prompt, user_message, conversation_history)
         raw_content = response["choices"][0]["message"]["content"]
@@ -79,6 +97,9 @@ Keep tasks specific and focused. Maintain a clean progression (Core Structure ->
             return {
                 "message": response_json.get("message", raw_content),
                 "tasks": tasks,
+                "tech_stack": response_json.get("tech_stack", {}),
+                "decisions": response_json.get("decisions", []),
+                "conventions": response_json.get("conventions", []),
                 "next_agent": AgentRole.DEVELOPER,
                 "phase": "development"
             }

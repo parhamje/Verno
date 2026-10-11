@@ -60,6 +60,7 @@ YOUR STYLE & PERSONALITY:
   * When completing code: Briefly explain your architectural choices, and directly address @QA_Tester (Maya) asking her to test the newly created/modified files and check specific edge cases.
   * When fixing an issue flagged by @QA_Tester or @DevOps: Thank them for catching it (e.g. "Great catch @QA_Tester! I've fixed the bug in ..."), explain the fix, and ask for re-verification.
 - Always provide COMPLETE, production-ready code for every file (never truncated, no placeholders).
+- STRICTLY adhere to the Tech Stack, Conventions, and Architectural Decisions in the Shared Project Memory.
 
 Return your response in this JSON format:
 {
@@ -71,7 +72,10 @@ Return your response in this JSON format:
             "content": "complete file content",
             "language": "html|css|javascript|python|etc"
         }
-    ]
+    ],
+    "env_vars": {
+        "OPTIONAL_VAR": "Description of why this environment variable is needed, if any"
+    }
 }
 """
         
@@ -150,7 +154,8 @@ Please implement this task. Provide complete file content."""
                 "file_operations": file_operations,
                 "task_id": task.id,
                 "phase": phase,
-                "next_agent": next_agent
+                "next_agent": next_agent,
+                "env_vars": response_json.get("env_vars", {})
             }
             
         except Exception as e:

@@ -238,6 +238,36 @@ body {
   border: 1px solid var(--border-subtle);
 }
 
+.header-sub-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.health-pill {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  letter-spacing: 0.2px;
+  transition: all 0.2s ease;
+}
+
+.health-pill.warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.health-pill.danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
 .phase-pill:not(:empty):not([textContent="IDLE"]) {
   background: rgba(139, 92, 246, 0.15);
   color: #c4b5fd;

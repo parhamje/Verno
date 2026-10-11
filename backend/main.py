@@ -214,6 +214,8 @@ async def start_project(project_id: str):
                                        for op in result.get("file_operations", [])],
                     "tasks": result.get("tasks", []),
                     "current_phase": result.get("current_phase"),
+                    "health_score": result.get("health_score", 100),
+                    "tech_stack": result.get("tech_stack", {}),
                     "is_complete": result.get("is_complete", False)
                 }
                 

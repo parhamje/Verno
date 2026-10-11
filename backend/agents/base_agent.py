@@ -69,6 +69,11 @@ class BaseAgent(ABC):
         if "current_phase" in context:
             formatted.append(f"\nCurrent Phase: {context['current_phase']}")
         
+        if "memory" in context and context["memory"]:
+            mem = context["memory"]
+            if hasattr(mem, "format_memory_summary"):
+                formatted.append("\n" + mem.format_memory_summary())
+        
         return "\n".join(formatted)
 
     def extract_json(self, text: str) -> Dict:

@@ -129,6 +129,8 @@ class Orchestrator:
                 "message_count": len(p.messages),
                 "task_count": len(p.tasks),
                 "completed_tasks": len([t for t in p.tasks if t.status == TaskStatus.COMPLETED]),
+                "health_score": getattr(getattr(p, "memory", None), "scorecard", None).health_score if hasattr(p, "memory") and hasattr(p.memory, "scorecard") else 100,
+                "tech_stack": getattr(p, "memory", None).tech_stack if hasattr(p, "memory") else {},
                 "last_message": last_msg
             })
         return items
@@ -348,13 +350,14 @@ class Orchestrator:
         current_agent_role = self.get_current_agent(project)
         agent = self.agents[project_id][current_agent_role]
         
-        # Prepare context
+        # Prepare context with Shared Project Memory
         context = {
             "requirement": project.requirement,
             "tasks": project.tasks,
             "files": project.files,
             "current_phase": project.current_phase,
-            "iterations": project.iterations
+            "iterations": project.iterations,
+            "memory": project.memory
         }
         
         try:
@@ -368,6 +371,21 @@ class Orchestrator:
             if "tasks" in result:
                 for task in result["tasks"]:
                     project.tasks.append(task)
+            
+            # Handle ProjectMemory updates from agent response
+            if "tech_stack" in result and result["tech_stack"] and isinstance(result["tech_stack"], dict):
+                project.memory.set_tech_stack(result["tech_stack"])
+            if "decisions" in result and result["decisions"] and isinstance(result["decisions"], list):
+                for d in result["decisions"]:
+                    if isinstance(d, dict) and "topic" in d and "decision" in d:
+                        project.memory.add_decision(d["topic"], d["decision"], d.get("rationale"), decided_by=str(current_agent_role))
+            if "conventions" in result and result["conventions"] and isinstance(result["conventions"], list):
+                for c in result["conventions"]:
+                    if isinstance(c, dict) and "category" in c and "rule" in c:
+                        project.memory.add_convention(c["category"], c["rule"])
+            if "env_vars" in result and result["env_vars"] and isinstance(result["env_vars"], dict):
+                for k, v in result["env_vars"].items():
+                    project.memory.register_env_var(k, str(v))
             
             # Handle file operations
             if "file_operations" in result:
@@ -389,6 +407,13 @@ class Orchestrator:
                 if current_agent_role == AgentRole.DEVELOPER and result["file_operations"]:
                     verification_error = await self.verify_code_in_workspace(project, result["file_operations"])
                     if verification_error:
+                        # Update QualityScorecard in Shared Memory
+                        project.memory.update_verification_score(
+                            syntax_ok=False,
+                            total_tests=1,
+                            passed_tests=0,
+                            failures=[verification_error[:150]]
+                        )
                         # Automated self-healing trigger
                         qa_notice = (
                             f"⚠️ @Developer (David), automated DevOps and QA checks caught an issue:\n"
@@ -409,6 +434,13 @@ class Orchestrator:
                         result["message"] += f"\n\n[DevOps Test Runner]: Error detected! Initiating Developer Agent self-healing loop:\n{verification_error}"
                         result["next_agent"] = AgentRole.DEVELOPER
                     else:
+                        # Update QualityScorecard in Shared Memory
+                        project.memory.update_verification_score(
+                            syntax_ok=True,
+                            total_tests=1,
+                            passed_tests=1,
+                            failures=[]
+                        )
                         devops_pass = "✅ @Developer (David) & @QA_Tester (Maya), all automated syntax and structural checks passed cleanly! Good to go."
                         self.add_message(project_id, AgentRole.DEVOPS, devops_pass)
                         if "task_id" in result:
@@ -434,7 +466,9 @@ class Orchestrator:
                 "file_operations": result.get("file_operations", []),
                 "is_complete": project.is_complete,
                 "tasks": [task.model_dump() for task in project.tasks],
-                "current_phase": project.current_phase
+                "current_phase": project.current_phase,
+                "health_score": project.memory.scorecard.health_score,
+                "tech_stack": project.memory.tech_stack
             }
             
         except Exception as e:

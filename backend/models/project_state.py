@@ -3,6 +3,10 @@ from typing import List, Dict, Optional
 import uuid
 from datetime import datetime
 from pydantic import BaseModel, Field
+try:
+    from models.project_memory import ProjectMemory
+except ImportError:
+    from .project_memory import ProjectMemory
 
 class AgentRole(str, Enum):
     USER = "user"
@@ -65,6 +69,7 @@ class ProjectState(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.now)
     api_key: str = ""
     providers_config: Optional[Dict] = None
+    memory: ProjectMemory = Field(default_factory=ProjectMemory)
     
     class Config:
         json_encoders = {
