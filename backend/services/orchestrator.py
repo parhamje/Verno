@@ -536,21 +536,28 @@ class Orchestrator:
                 if result.get("approved"):
                     if active_task and active_task.assigned_to == AgentRole.QA_TESTER:
                         graph.mark_completed(active_task.id)
+                    else:
+                        qa_pending = [t for t in graph.tasks if t.assigned_to == AgentRole.QA_TESTER and t.status != TaskStatus.COMPLETED]
+                        if qa_pending:
+                            graph.mark_completed(qa_pending[0].id)
                     if graph.all_completed():
                         project.current_phase = "deployment"
                         result["next_agent"] = AgentRole.DEVOPS
+                        result["phase"] = "deployment"
                     else:
                         ready = graph.get_ready_tasks()
                         if ready:
                             next_t = graph.start_next_task()
                             project.current_phase = "development" if next_t.assigned_to == AgentRole.DEVELOPER else "testing"
                             result["next_agent"] = next_t.assigned_to
+                            result["phase"] = project.current_phase
                 elif result.get("approved") is False:
                     if active_task:
                         err_reason = ", ".join(result.get("issues", [])) or "QA rejected implementation"
                         graph.mark_failed(active_task.id, reason=err_reason, auto_retry=True)
                     project.current_phase = "development"
                     result["next_agent"] = AgentRole.DEVELOPER
+                    result["phase"] = "development"
 
             # Project Manager handoff after planning
             if current_agent_role == AgentRole.PROJECT_MANAGER and result.get("tasks"):
@@ -558,6 +565,7 @@ class Orchestrator:
                 if next_t:
                     project.current_phase = "development" if next_t.assigned_to == AgentRole.DEVELOPER else "testing"
                     result["next_agent"] = next_t.assigned_to
+                    result["phase"] = project.current_phase
 
             # DevOps completion with Definition of Done (DoD) Gatekeeper Verification
             if current_agent_role == AgentRole.DEVOPS:
@@ -632,7 +640,7 @@ class Orchestrator:
     
     def get_current_agent(self, project: ProjectState) -> AgentRole:
         """Determine which agent should act next dynamically based on TaskGraph, Self-Healing, and Phase"""
-        if not project.tasks and project.current_phase in ["initialization", "planning"]:
+        if not project.tasks:
             return AgentRole.PROJECT_MANAGER
 
         graph = project.get_task_graph()

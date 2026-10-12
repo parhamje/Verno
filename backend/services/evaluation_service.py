@@ -98,12 +98,17 @@ class EvaluationService:
 
         # Calculate Overall Health Score (0 - 100)
         # Weights: Syntax 35%, Tests 30%, Tasks 20%, Security 15%
-        score = 0
-        score += int(task_check["score"] * 0.20)
-        score += int(syntax_check["score"] * 0.35)
-        score += int(test_check["score"] * 0.30)
-        score += int(security_check["score"] * 0.15)
-        health_score = max(0, min(100, score))
+        if not task_check["passed"] and task_check.get("total", 0) == 0:
+            health_score = 0
+        elif not syntax_check["passed"] and syntax_check.get("checked_count", 0) == 0:
+            health_score = 0
+        else:
+            score = 0
+            score += int(task_check["score"] * 0.20)
+            score += int(syntax_check["score"] * 0.35)
+            score += int(test_check["score"] * 0.30)
+            score += int(security_check["score"] * 0.15)
+            health_score = max(0, min(100, score))
 
         # Definition of Done Pass Condition:
         # All syntax valid, no security leaks, all tasks completed, tests passed
@@ -151,7 +156,13 @@ class EvaluationService:
         """Verify that all tasks in the project task graph are finished"""
         tasks = project.tasks
         if not tasks:
-            return {"passed": True, "score": 100, "total": 0, "completed": 0, "failures": []}
+            return {
+                "passed": False,
+                "score": 0,
+                "total": 0,
+                "completed": 0,
+                "failures": ["No sprint tasks registered in the project task graph"]
+            }
 
         total = len(tasks)
         completed = sum(1 for t in tasks if t.status == TaskStatus.COMPLETED)
@@ -164,8 +175,8 @@ class EvaluationService:
         for t in pending_tasks:
             failures.append(f"Task '{t.title}' is not completed ({t.status.value})")
 
-        passed = (completed == total) and not failed_tasks
-        score = int((completed / total) * 100) if total > 0 else 100
+        passed = (completed == total) and not failed_tasks and total > 0
+        score = int((completed / total) * 100) if total > 0 else 0
 
         return {
             "passed": passed,
@@ -177,7 +188,7 @@ class EvaluationService:
 
     @classmethod
     async def _check_syntax(cls, project: ProjectState) -> Dict:
-        """Run syntax compilation on all Python, JavaScript, and JSON workspace files"""
+        """Run syntax compilation on all Python, JavaScript, JSON, HTML, and CSS workspace files"""
         failures = []
         checked_count = 0
 
@@ -194,9 +205,27 @@ class EvaluationService:
         else:
             files_to_check = list(project.files.keys())
 
+        if not files_to_check and not project.files:
+            return {
+                "passed": False,
+                "score": 0,
+                "checked_count": 0,
+                "failures": ["No deliverable source files generated in project workspace"]
+            }
+
         for rel_path in files_to_check:
             full_path = os.path.join(project.project_directory, rel_path)
-            if not os.path.exists(full_path):
+            content = None
+            if os.path.exists(full_path):
+                try:
+                    with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
+                        content = f.read()
+                except Exception:
+                    pass
+            elif rel_path in project.files:
+                content = project.files[rel_path]
+
+            if content is None:
                 continue
 
             # Python Check
@@ -210,7 +239,7 @@ class EvaluationService:
                     _, err = await asyncio.wait_for(proc.communicate(), timeout=5.0)
                     if proc.returncode != 0 and err:
                         failures.append(f"Python Syntax Error in {rel_path}:\n{err.decode('utf-8', errors='replace').strip()}")
-                except Exception as e:
+                except Exception:
                     pass
 
             # JavaScript Check
@@ -231,12 +260,28 @@ class EvaluationService:
             elif rel_path.endswith(".json"):
                 checked_count += 1
                 try:
-                    with open(full_path, "r", encoding="utf-8") as jf:
-                        json.load(jf)
+                    json.loads(content)
                 except Exception as je:
                     failures.append(f"JSON Syntax Error in {rel_path}: {str(je)}")
 
-        passed = len(failures) == 0
+            # HTML Check (basic tag and structure validation)
+            elif rel_path.endswith(".html"):
+                checked_count += 1
+                if not content.strip():
+                    failures.append(f"HTML Empty File in {rel_path}")
+                elif "<html" in content.lower() and "</html>" not in content.lower():
+                    failures.append(f"HTML Syntax Error in {rel_path}: Unclosed <html> tag")
+
+            # CSS Check (brace balance)
+            elif rel_path.endswith(".css"):
+                checked_count += 1
+                if content.count("{") != content.count("}"):
+                    failures.append(f"CSS Syntax Error in {rel_path}: Mismatched braces ({{ {content.count('{')} vs }} {content.count('}')})")
+
+            else:
+                checked_count += 1
+
+        passed = len(failures) == 0 and len(files_to_check) > 0
         score = 100 if passed else max(0, 100 - (len(failures) * 35))
         return {
             "passed": passed,

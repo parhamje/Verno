@@ -12,12 +12,11 @@ class ProjectManagerAgent(BaseAgent):
     async def process(self, context: Dict, conversation_history: List[Message]) -> Dict:
         """Create project plan and manage tasks"""
         
+        tasks = context.get("tasks", [])
         current_phase = context.get("current_phase", "initialization")
         
-        if current_phase == "initialization":
+        if not tasks or current_phase in ["initialization", "planning"]:
             return await self.create_project_plan(context, conversation_history)
-        elif current_phase == "planning":
-            return await self.monitor_progress(context, conversation_history)
         else:
             return await self.monitor_progress(context, conversation_history)
     
@@ -118,6 +117,32 @@ Keep tasks specific and focused. Maintain a clean progression (Core Structure ->
                 )
                 tasks.append(task)
             
+            # Safeguard: If model didn't return any tasks, synthesize core implementation & QA tasks
+            if not tasks:
+                req_title = context.get("requirement", "Core implementation")[:50]
+                dev_id = str(uuid.uuid4())
+                qa_id = str(uuid.uuid4())
+                tasks = [
+                    Task(
+                        id=dev_id,
+                        title=f"Implement: {req_title}",
+                        description=f"Develop complete code and deliverable files for: {context.get('requirement', '')}",
+                        status=TaskStatus.PENDING,
+                        assigned_to=AgentRole.DEVELOPER,
+                        created_at=datetime.now(),
+                        dependencies=[]
+                    ),
+                    Task(
+                        id=qa_id,
+                        title="Comprehensive QA & functional validation",
+                        description=f"Inspect, test, and verify code implementation and edge cases.",
+                        status=TaskStatus.PENDING,
+                        assigned_to=AgentRole.QA_TESTER,
+                        created_at=datetime.now(),
+                        dependencies=[dev_id]
+                    )
+                ]
+
             return {
                 "message": response_json.get("message", raw_content),
                 "tasks": tasks,
@@ -130,9 +155,32 @@ Keep tasks specific and focused. Maintain a clean progression (Core Structure ->
             
         except Exception as e:
             # Fallback if JSON parsing fails
+            req_title = context.get("requirement", "Core implementation")[:50]
+            dev_id = str(uuid.uuid4())
+            qa_id = str(uuid.uuid4())
+            fallback_tasks = [
+                Task(
+                    id=dev_id,
+                    title=f"Implement: {req_title}",
+                    description=f"Develop complete code and deliverable files for: {context.get('requirement', '')}",
+                    status=TaskStatus.PENDING,
+                    assigned_to=AgentRole.DEVELOPER,
+                    created_at=datetime.now(),
+                    dependencies=[]
+                ),
+                Task(
+                    id=qa_id,
+                    title="Comprehensive QA & functional validation",
+                    description=f"Inspect, test, and verify code implementation and edge cases.",
+                    status=TaskStatus.PENDING,
+                    assigned_to=AgentRole.QA_TESTER,
+                    created_at=datetime.now(),
+                    dependencies=[dev_id]
+                )
+            ]
             return {
                 "message": raw_content,
-                "tasks": [],
+                "tasks": fallback_tasks,
                 "next_agent": AgentRole.DEVELOPER,
                 "phase": "development"
             }
@@ -141,6 +189,9 @@ Keep tasks specific and focused. Maintain a clean progression (Core Structure ->
         """Monitor project progress and decide next steps"""
         
         tasks = context.get("tasks", [])
+        if not tasks:
+            return await self.create_project_plan(context, conversation_history)
+
         pending_tasks = [t for t in tasks if t.status != TaskStatus.COMPLETED]
         
         if not pending_tasks:
