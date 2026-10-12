@@ -17,6 +17,11 @@ try:
 except ImportError:
     from .intent_router import IntentRouter, IntentType
 
+try:
+    from services.evaluation_service import EvaluationService, EvaluationResult
+except ImportError:
+    from .evaluation_service import EvaluationService, EvaluationResult
+
 from agents import ProjectManagerAgent, DeveloperAgent, QATesterAgent, DevOpsAgent
 from .ai_service import AIService
 from config import config
@@ -554,12 +559,36 @@ class Orchestrator:
                     project.current_phase = "development" if next_t.assigned_to == AgentRole.DEVELOPER else "testing"
                     result["next_agent"] = next_t.assigned_to
 
-            # DevOps completion
+            # DevOps completion with Definition of Done (DoD) Gatekeeper Verification
             if current_agent_role == AgentRole.DEVOPS:
-                project.is_complete = True
-                project.current_phase = "complete"
-                result["is_complete"] = True
-                result["next_agent"] = None
+                eval_result = await EvaluationService.evaluate_project(project)
+                if eval_result.passed:
+                    project.is_complete = True
+                    project.current_phase = "complete"
+                    result["is_complete"] = True
+                    result["next_agent"] = None
+                    result["message"] += f"\n\n---\n{eval_result.summary}"
+                else:
+                    project.is_complete = False
+                    remediation_role = eval_result.remediation_agent or AgentRole.DEVELOPER
+                    dod_alert = (
+                        f"🛡️ **[Definition of Done Gatekeeper]:** Sprint completion blocked!\n"
+                        f"{eval_result.summary}\n\n"
+                        f"@DevOps, handing off remediation task to @{remediation_role.value} to ensure production quality standards."
+                    )
+                    self.add_message(project_id, AgentRole.DEVOPS, dod_alert)
+                    
+                    rem_task = Task(
+                        id=str(uuid.uuid4()),
+                        title="DoD Remediation: Fix quality issues",
+                        description="\n".join(eval_result.failures),
+                        assigned_to=remediation_role,
+                        status=TaskStatus.IN_PROGRESS
+                    )
+                    project.tasks.append(rem_task)
+                    project.current_phase = "development" if remediation_role == AgentRole.DEVELOPER else "testing"
+                    result["next_agent"] = remediation_role
+                    result["message"] += f"\n\n[DoD Gatekeeper]: Quality criteria unfulfilled. Transitioning to {remediation_role.value} for remediation."
 
             # Update phase if explicitly returned and not complete
             if "phase" in result and not project.is_complete:
@@ -581,6 +610,7 @@ class Orchestrator:
                 "tasks": [task.model_dump() for task in project.tasks],
                 "current_phase": project.current_phase,
                 "health_score": project.memory.scorecard.health_score,
+                "scorecard": project.memory.scorecard.model_dump(),
                 "tech_stack": project.memory.tech_stack
             }
             
@@ -669,6 +699,15 @@ class Orchestrator:
         response = await ai_service.generate(model, system_prompt, messages)
         await ai_service.close()
         return response["choices"][0]["message"]["content"]
+
+    async def evaluate_project(self, project_id: str) -> Optional[Dict]:
+        """Run an on-demand Definition of Done and Quality evaluation on a project"""
+        project = self.get_project(project_id)
+        if not project:
+            return None
+        eval_result = await EvaluationService.evaluate_project(project)
+        self.save_project(project_id)
+        return eval_result.to_dict()
 
     async def cleanup(self):
         """Cleanup resources"""

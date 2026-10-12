@@ -215,6 +215,7 @@ async def start_project(project_id: str):
                     "tasks": result.get("tasks", []),
                     "current_phase": result.get("current_phase"),
                     "health_score": result.get("health_score", 100),
+                    "scorecard": result.get("scorecard", {}),
                     "tech_stack": result.get("tech_stack", {}),
                     "is_complete": result.get("is_complete", False)
                 }
@@ -252,6 +253,31 @@ async def start_project(project_id: str):
             "X-Accel-Buffering": "no",
         }
     )
+
+@app.get("/api/projects/{project_id}/scorecard")
+async def get_project_scorecard(project_id: str):
+    """Get the current Quality Scorecard and DoD breakdown for a project"""
+    project = orchestrator.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return {
+        "success": True,
+        "scorecard": project.memory.scorecard.model_dump(),
+        "health_score": project.memory.scorecard.health_score,
+        "dod_passed": project.memory.scorecard.dod_passed,
+        "criteria": project.memory.scorecard.criteria_breakdown
+    }
+
+@app.post("/api/projects/{project_id}/evaluate")
+async def evaluate_project(project_id: str):
+    """Run an on-demand Definition of Done and Quality Gatekeeper evaluation"""
+    eval_result = await orchestrator.evaluate_project(project_id)
+    if not eval_result:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return {
+        "success": True,
+        "evaluation": eval_result
+    }
 
 @app.post("/api/projects/{project_id}/messages")
 async def add_message(project_id: str, request: MessageRequest):

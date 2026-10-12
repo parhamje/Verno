@@ -37,6 +37,10 @@ class QualityScorecard(BaseModel):
     tests_passed: int = 0
     test_failures: List[str] = Field(default_factory=list)
     lint_errors: List[str] = Field(default_factory=list)
+    security_passed: bool = True
+    security_issues: List[str] = Field(default_factory=list)
+    dod_passed: bool = False
+    criteria_breakdown: Dict[str, Dict] = Field(default_factory=dict)
     health_score: int = 100  # 0 to 100%
     last_verified_at: Optional[datetime] = None
 
@@ -132,12 +136,15 @@ class ProjectMemory(BaseModel):
             for k, v in self.environment_variables.items():
                 lines.append(f"  - {k}: {v}")
                 
-        # 5. Health Scorecard
+        # 5. Quality Scorecard & DoD Status
         sc = self.scorecard
         status_icon = "🟢" if sc.health_score >= 80 else ("🟡" if sc.health_score >= 50 else "🔴")
-        lines.append(f"• Health Score: {status_icon} {sc.health_score}% | Syntax: {'Valid' if sc.syntax_passed else 'Broken'}")
+        dod_str = "Approved ✅" if sc.dod_passed else "Pending Verification ⏳"
+        lines.append(f"• Quality Scorecard: {status_icon} {sc.health_score}% | DoD: {dod_str} | Syntax: {'Valid' if sc.syntax_passed else 'Broken'} | Security: {'Clean' if sc.security_passed else 'Alert'}")
         if sc.test_failures:
             lines.append(f"  ⚠️ Unresolved Test Failures ({len(sc.test_failures)}): " + "; ".join(sc.test_failures[:3]))
+        if sc.security_issues:
+            lines.append(f"  🚨 Security Alerts ({len(sc.security_issues)}): " + "; ".join(sc.security_issues[:2]))
             
         lines.append("================================================")
         return "\n".join(lines)

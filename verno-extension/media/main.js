@@ -21,6 +21,7 @@ const state = {
   workspaceFiles: [],
   selectedContextFiles: new Set(),
   activeFilesContext: {},
+  currentScorecard: null,
   // Active AI Configuration
   config: {
     AI_PROVIDER: "liara",
@@ -192,6 +193,19 @@ const historyCloseBtn = document.getElementById("historyCloseBtn");
 const historyList = document.getElementById("historyList");
 const historySearchInput = document.getElementById("historySearchInput");
 const historyCount = document.getElementById("historyCount");
+
+// Quality Scorecard & DoD HUD DOM Elements
+const scorecardModal = document.getElementById("scorecardModal");
+const closeScorecardBtn = document.getElementById("closeScorecardBtn");
+const closeScorecardFooterBtn = document.getElementById("closeScorecardFooterBtn");
+const runDodAuditBtn = document.getElementById("runDodAuditBtn");
+const scHealthNumber = document.getElementById("scHealthNumber");
+const scDodBadge = document.getElementById("scDodBadge");
+const scDodIcon = document.getElementById("scDodIcon");
+const scDodText = document.getElementById("scDodText");
+const scLastVerified = document.getElementById("scLastVerified");
+const scFailuresBox = document.getElementById("scFailuresBox");
+const scFailuresList = document.getElementById("scFailuresList");
 
 const networkBanner = document.getElementById("networkBanner");
 const networkStatusTitle = document.getElementById("networkStatusTitle");
@@ -463,6 +477,50 @@ document.addEventListener("DOMContentLoaded", () => {
   if (startBtn) startBtn.addEventListener("click", handleStart);
   if (stopBtn) stopBtn.addEventListener("click", handleStop);
   if (settingsBtn) settingsBtn.addEventListener("click", openSettingsModal);
+
+  // Scorecard & Definition of Done (DoD) HUD Listeners
+  if (projectHealthPill) {
+    projectHealthPill.addEventListener("click", openScorecardModal);
+  }
+  if (closeScorecardBtn) {
+    closeScorecardBtn.addEventListener("click", closeScorecardModal);
+  }
+  if (closeScorecardFooterBtn) {
+    closeScorecardFooterBtn.addEventListener("click", closeScorecardModal);
+  }
+  if (scorecardModal) {
+    scorecardModal.addEventListener("click", (e) => {
+      if (e.target === scorecardModal) closeScorecardModal();
+    });
+  }
+  if (runDodAuditBtn) {
+    runDodAuditBtn.addEventListener("click", async () => {
+      if (!state.projectId) return;
+      runDodAuditBtn.disabled = true;
+      runDodAuditBtn.innerHTML = `<span>⏳ Auditing Quality & DoD...</span>`;
+      try {
+        const res = await fetch(`${state.apiBaseUrl}/api/projects/${state.projectId}/evaluate`, {
+          method: "POST"
+        });
+        const data = await res.json();
+        if (data.success && data.evaluation) {
+          state.currentScorecard = data.evaluation.criteria ? {
+            ...data.evaluation,
+            criteria_breakdown: data.evaluation.criteria,
+            test_failures: data.evaluation.failures,
+            dod_passed: data.evaluation.passed
+          } : data.evaluation;
+          populateScorecardUI(state.currentScorecard);
+          updateHealthPill(data.evaluation.health_score, state.currentScorecard);
+        }
+      } catch (err) {
+        console.error("DoD Audit failed:", err);
+      } finally {
+        runDodAuditBtn.disabled = false;
+        runDodAuditBtn.innerHTML = `<span>🛡️ Run Full DoD Audit</span>`;
+      }
+    });
+  }
 
   // History Drawer Listeners
   if (historyBtn) historyBtn.addEventListener("click", openHistoryDrawer);
@@ -1257,8 +1315,11 @@ function startProjectSSE(projectId) {
             if (currentPhasePill) currentPhasePill.textContent = data.current_phase.toUpperCase();
           }
 
+          if (data.scorecard) {
+            state.currentScorecard = data.scorecard;
+          }
           if (data.health_score !== undefined) {
-            updateHealthPill(data.health_score);
+            updateHealthPill(data.health_score, data.scorecard);
           }
 
           // Calculate progress
@@ -1542,7 +1603,8 @@ async function loadProjectSession(projectId) {
     renderTasks(proj.tasks || []);
 
     if (proj.memory && proj.memory.scorecard && proj.memory.scorecard.health_score !== undefined) {
-      updateHealthPill(proj.memory.scorecard.health_score);
+      state.currentScorecard = proj.memory.scorecard;
+      updateHealthPill(proj.memory.scorecard.health_score, proj.memory.scorecard);
     } else {
       updateHealthPill(null);
     }
@@ -1694,8 +1756,11 @@ function updateProgress(percent) {
   if (progressPercent) progressPercent.textContent = `${percent}%`;
 }
 
-function updateHealthPill(score) {
+function updateHealthPill(score, scorecard) {
   if (!projectHealthPill) return;
+  if (scorecard) {
+    state.currentScorecard = scorecard;
+  }
   if (score === undefined || score === null) {
     projectHealthPill.style.display = "none";
     return;
@@ -1703,10 +1768,154 @@ function updateHealthPill(score) {
   projectHealthPill.style.display = "inline-block";
   projectHealthPill.textContent = `🛡️ ${score}%`;
   projectHealthPill.className = "health-pill";
+  projectHealthPill.title = "Click to inspect Quality Scorecard & Definition of Done";
   if (score < 50) {
     projectHealthPill.classList.add("danger");
   } else if (score < 80) {
     projectHealthPill.classList.add("warning");
+  }
+}
+
+function openScorecardModal() {
+  if (!scorecardModal) return;
+  scorecardModal.classList.remove("hidden");
+  if (state.currentScorecard) {
+    populateScorecardUI(state.currentScorecard);
+  } else if (state.projectId) {
+    fetch(`${state.apiBaseUrl}/api/projects/${state.projectId}/scorecard`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.scorecard) {
+          state.currentScorecard = data.scorecard;
+          populateScorecardUI(data.scorecard);
+        }
+      })
+      .catch(err => console.error("Error fetching scorecard:", err));
+  }
+}
+
+function closeScorecardModal() {
+  if (scorecardModal) scorecardModal.classList.add("hidden");
+}
+
+function populateScorecardUI(sc) {
+  if (!sc) return;
+  const score = sc.health_score !== undefined ? sc.health_score : 100;
+  if (scHealthNumber) scHealthNumber.textContent = `${score}%`;
+  
+  if (scDodBadge && scDodText && scDodIcon) {
+    if (sc.dod_passed) {
+      scDodBadge.className = "scorecard-dod-badge approved";
+      scDodIcon.textContent = "✅";
+      scDodText.textContent = "DoD Approved";
+    } else {
+      scDodBadge.className = "scorecard-dod-badge pending";
+      scDodIcon.textContent = "⏳";
+      scDodText.textContent = "DoD Verification Pending";
+    }
+  }
+
+  if (scLastVerified) {
+    scLastVerified.textContent = sc.last_verified_at 
+      ? `Last verified: ${new Date(sc.last_verified_at).toLocaleTimeString()}`
+      : "Last verified: Ready for audit";
+  }
+
+  const breakdown = sc.criteria_breakdown || {};
+
+  // Syntax
+  const critSyntaxPill = document.getElementById("critSyntaxPill");
+  const critSyntaxIcon = document.getElementById("critSyntaxIcon");
+  const critSyntaxDesc = document.getElementById("critSyntaxDesc");
+  if (critSyntaxPill && critSyntaxIcon) {
+    const syntaxPassed = sc.syntax_passed !== false;
+    critSyntaxPill.textContent = syntaxPassed ? "100%" : "FAILED";
+    critSyntaxPill.className = `crit-status-pill ${syntaxPassed ? 'passed' : 'failed'}`;
+    critSyntaxIcon.textContent = syntaxPassed ? "🟢" : "🔴";
+    if (critSyntaxDesc) critSyntaxDesc.textContent = syntaxPassed ? "All workspace files compile cleanly" : "Syntax or build errors found";
+  }
+
+  // Tasks
+  const critTasksPill = document.getElementById("critTasksPill");
+  const critTasksIcon = document.getElementById("critTasksIcon");
+  const critTasksDesc = document.getElementById("critTasksDesc");
+  if (critTasksPill && critTasksIcon) {
+    const taskCheck = breakdown.tasks_completion || {};
+    const taskPassed = taskCheck.passed !== false;
+    critTasksPill.textContent = taskCheck.score !== undefined ? `${taskCheck.score}%` : (taskPassed ? "100%" : "INCOMPLETE");
+    critTasksPill.className = `crit-status-pill ${taskPassed ? 'passed' : 'warning'}`;
+    critTasksIcon.textContent = taskPassed ? "🟢" : "🟡";
+    if (critTasksDesc) {
+      critTasksDesc.textContent = taskCheck.total 
+        ? `${taskCheck.completed}/${taskCheck.total} sprint tasks completed`
+        : "All DAG sprint tasks completed";
+    }
+  }
+
+  // Tests
+  const critTestsPill = document.getElementById("critTestsPill");
+  const critTestsIcon = document.getElementById("critTestsIcon");
+  const critTestsDesc = document.getElementById("critTestsDesc");
+  if (critTestsPill && critTestsIcon) {
+    const testsTotal = sc.tests_total || 0;
+    const testsPassed = sc.tests_passed || 0;
+    const testCheck = breakdown.test_suite || {};
+    if (!testCheck.has_tests && testsTotal === 0) {
+      critTestsPill.textContent = "NO TESTS";
+      critTestsPill.className = "crit-status-pill warning";
+      critTestsIcon.textContent = "🟡";
+      if (critTestsDesc) critTestsDesc.textContent = "No unit test files found in workspace";
+    } else if (testsPassed === testsTotal) {
+      critTestsPill.textContent = `${testsPassed}/${testsTotal} PASS`;
+      critTestsPill.className = "crit-status-pill passed";
+      critTestsIcon.textContent = "🟢";
+      if (critTestsDesc) critTestsDesc.textContent = "All test assertions passed cleanly";
+    } else {
+      critTestsPill.textContent = `${testsPassed}/${testsTotal} FAIL`;
+      critTestsPill.className = "crit-status-pill failed";
+      critTestsIcon.textContent = "🔴";
+      if (critTestsDesc) critTestsDesc.textContent = "Test failures detected";
+    }
+  }
+
+  // Security
+  const critSecurityPill = document.getElementById("critSecurityPill");
+  const critSecurityIcon = document.getElementById("critSecurityIcon");
+  const critSecurityDesc = document.getElementById("critSecurityDesc");
+  if (critSecurityPill && critSecurityIcon) {
+    const secPassed = sc.security_passed !== false;
+    critSecurityPill.textContent = secPassed ? "CLEAN" : "FLAGGED";
+    critSecurityPill.className = `crit-status-pill ${secPassed ? 'passed' : 'failed'}`;
+    critSecurityIcon.textContent = secPassed ? "🟢" : "🔴";
+    if (critSecurityDesc) critSecurityDesc.textContent = secPassed ? "No leaked API tokens or credentials" : "Potential hardcoded secrets detected";
+  }
+
+  // Environment
+  const critEnvPill = document.getElementById("critEnvPill");
+  const critEnvIcon = document.getElementById("critEnvIcon");
+  const critEnvDesc = document.getElementById("critEnvDesc");
+  if (critEnvPill && critEnvIcon) {
+    const envCheck = breakdown.environment_docs || {};
+    const envPassed = envCheck.passed !== false;
+    critEnvPill.textContent = envPassed ? "OK" : "MISSING";
+    critEnvPill.className = `crit-status-pill ${envPassed ? 'passed' : 'warning'}`;
+    critEnvIcon.textContent = envPassed ? "🟢" : "🟡";
+    if (critEnvDesc) critEnvDesc.textContent = envPassed ? "Environment configuration documented" : "Missing .env.example template";
+  }
+
+  // Failures box
+  const allFailures = [
+    ...(sc.test_failures || []),
+    ...(sc.security_issues || [])
+  ];
+  if (scFailuresBox && scFailuresList) {
+    if (allFailures.length > 0) {
+      scFailuresBox.classList.remove("hidden");
+      scFailuresList.innerHTML = allFailures.map(f => `<li>${escapeHtml(f)}</li>`).join("");
+    } else {
+      scFailuresBox.classList.add("hidden");
+      scFailuresList.innerHTML = "";
+    }
   }
 }
 

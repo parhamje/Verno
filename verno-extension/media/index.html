@@ -591,6 +591,112 @@
     </div>
   </div>
 
+  <!-- Quality Scorecard & Definition of Done (DoD) HUD Modal -->
+  <div class="modal-overlay hidden" id="scorecardModal">
+    <div class="modal-container scorecard-modal-container">
+      <div class="modal-header-bar">
+        <div class="modal-title-group">
+          <span class="modal-title-icon">📊</span>
+          <span class="modal-title-text">Quality Scorecard & Definition of Done</span>
+        </div>
+        <button class="modal-close-btn" id="closeScorecardBtn" title="Close">✕</button>
+      </div>
+
+      <div class="scorecard-body">
+        <!-- Top Health Summary Row -->
+        <div class="scorecard-summary-card">
+          <div class="scorecard-score-box">
+            <span class="scorecard-big-number" id="scHealthNumber">100%</span>
+            <span class="scorecard-score-label">Health Score</span>
+          </div>
+          <div class="scorecard-status-box">
+            <div class="scorecard-dod-badge approved" id="scDodBadge">
+              <span class="dod-icon" id="scDodIcon">✅</span>
+              <span class="dod-text" id="scDodText">DoD Approved</span>
+            </div>
+            <div class="scorecard-timestamp" id="scLastVerified">Last verified: Just now</div>
+          </div>
+        </div>
+
+        <!-- Criteria Grid -->
+        <div class="scorecard-criteria-list">
+          <div class="criteria-card" id="critSyntax">
+            <div class="crit-left">
+              <span class="crit-icon" id="critSyntaxIcon">🟢</span>
+              <div class="crit-info">
+                <span class="crit-title">Syntax & Build Integrity</span>
+                <span class="crit-desc" id="critSyntaxDesc">All workspace files compile cleanly</span>
+              </div>
+            </div>
+            <span class="crit-status-pill passed" id="critSyntaxPill">100%</span>
+          </div>
+
+          <div class="criteria-card" id="critTasks">
+            <div class="crit-left">
+              <span class="crit-icon" id="critTasksIcon">🟢</span>
+              <div class="crit-info">
+                <span class="crit-title">Sprint Task Completion</span>
+                <span class="crit-desc" id="critTasksDesc">All DAG sprint tasks completed</span>
+              </div>
+            </div>
+            <span class="crit-status-pill passed" id="critTasksPill">100%</span>
+          </div>
+
+          <div class="criteria-card" id="critTests">
+            <div class="crit-left">
+              <span class="crit-icon" id="critTestsIcon">🟢</span>
+              <div class="crit-info">
+                <span class="crit-title">Automated Test Suite</span>
+                <span class="crit-desc" id="critTestsDesc">All unit tests executed and passed</span>
+              </div>
+            </div>
+            <span class="crit-status-pill passed" id="critTestsPill">PASSED</span>
+          </div>
+
+          <div class="criteria-card" id="critSecurity">
+            <div class="crit-left">
+              <span class="crit-icon" id="critSecurityIcon">🟢</span>
+              <div class="crit-info">
+                <span class="crit-title">Security & Secrets Hygiene</span>
+                <span class="crit-desc" id="critSecurityDesc">No hardcoded API tokens or secrets found</span>
+              </div>
+            </div>
+            <span class="crit-status-pill passed" id="critSecurityPill">CLEAN</span>
+          </div>
+
+          <div class="criteria-card" id="critEnv">
+            <div class="crit-left">
+              <span class="crit-icon" id="critEnvIcon">🟢</span>
+              <div class="crit-info">
+                <span class="crit-title">Environment & Config</span>
+                <span class="crit-desc" id="critEnvDesc">Configuration documented</span>
+              </div>
+            </div>
+            <span class="crit-status-pill passed" id="critEnvPill">OK</span>
+          </div>
+        </div>
+
+        <!-- Failure Details Area -->
+        <div class="scorecard-failures-box hidden" id="scFailuresBox">
+          <div class="failures-title">⚠️ Open Quality & DoD Issues:</div>
+          <ul class="failures-list" id="scFailuresList"></ul>
+        </div>
+      </div>
+
+      <div class="modal-footer-bar">
+        <div class="footer-status-text">
+          <span>Continuous Automated Quality Gatekeeper</span>
+        </div>
+        <div class="footer-btn-group">
+          <button class="btn-modal-cancel" id="closeScorecardFooterBtn">Close</button>
+          <button class="btn-modal-save" id="runDodAuditBtn">
+            <span>🛡️ Run Full DoD Audit</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="{{SCRIPT_URI}}"></script>
 </body>
 </html>
