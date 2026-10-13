@@ -205,18 +205,32 @@ async def start_project(project_id: str):
                     break
                 
                 consecutive_net_errors = 0
+                file_ops_payload = []
+                for op in result.get("file_operations", []):
+                    op_dict = op.model_dump() if hasattr(op, 'model_dump') else dict(op)
+                    raw_path = op_dict.get("path", "")
+                    full_p = os.path.join(project.project_directory, raw_path).replace("\\", "/")
+                    op_dict["full_path"] = full_p
+                    op_dict["project_name"] = project.project_name
+                    if project.project_name and not raw_path.startswith(f"{project.project_name}/"):
+                        op_dict["target_path"] = f"{project.project_name}/{raw_path}".replace("\\", "/")
+                    else:
+                        op_dict["target_path"] = raw_path
+                    file_ops_payload.append(op_dict)
+
                 event_data = {
                     "type": "progress",
                     "agent": result.get("agent"),
                     "next_agent": result.get("next_agent"),
                     "message": result.get("message"),
-                    "file_operations": [op.model_dump() if hasattr(op, 'model_dump') else op 
-                                       for op in result.get("file_operations", [])],
+                    "file_operations": file_ops_payload,
                     "tasks": result.get("tasks", []),
                     "current_phase": result.get("current_phase"),
                     "health_score": result.get("health_score", 100),
                     "scorecard": result.get("scorecard", {}),
                     "tech_stack": result.get("tech_stack", {}),
+                    "project_name": project.project_name,
+                    "project_directory": project.project_directory,
                     "is_complete": result.get("is_complete", False)
                 }
                 

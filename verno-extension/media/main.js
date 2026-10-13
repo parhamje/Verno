@@ -1295,13 +1295,23 @@ function startProjectSSE(projectId) {
             }
           }
 
+          if (data.project_name) {
+            state.projectName = data.project_name;
+          }
+
           // Direct VS Code workspace integration: write files and open in editor
           if (data.file_operations && data.file_operations.length > 0) {
             for (const fileOp of data.file_operations) {
+              const projFolder = data.project_name || state.projectName || '';
+              const targetPath = fileOp.full_path || fileOp.target_path || (
+                (projFolder && !fileOp.path.startsWith(projFolder + '/') && !fileOp.path.startsWith(projFolder + '\\'))
+                  ? `${projFolder}/${fileOp.path}`
+                  : fileOp.path
+              );
               vscode.postMessage({
                 command: 'fileOperation',
                 operation: fileOp.operation,
-                filePath: fileOp.path,
+                filePath: targetPath,
                 content: fileOp.content
               });
             }
